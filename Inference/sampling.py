@@ -102,7 +102,6 @@ def evaluate_cardinalities(schema, query_file, sample_df,
     q_errors = np.array(q_errors)
     q_errors.sort()
 
-    # https://arxiv.org/pdf/1809.00677.pdf
     for i, percentile in enumerate([50, 90, 95, 99]):
         print(f"Q-Error {percentile}%-Percentile")
 

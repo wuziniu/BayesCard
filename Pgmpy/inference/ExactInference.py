@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 import copy
 import itertools
-
+from collections import defaultdict
+from itertools import chain
 import networkx as nx
 import numpy as np
 from tqdm import tqdm
@@ -15,19 +16,47 @@ from Pgmpy.inference.EliminationOrder import (
     MinWeight,
 )
 from Pgmpy.models import JunctionTree, BayesianModel
+from Pgmpy.factors.discrete import TabularCPD
 
+class VariableElimination(object):
+    def __init__(self, model):
+        self.model = model
+        model.check_model()
 
-class VariableElimination(Inference):
+        if isinstance(model, JunctionTree):
+            self.variables = set(chain(*model.nodes()))
+        else:
+            self.variables = model.nodes()
+
+        self.cardinality = {}
+        self.factors = defaultdict(list)
+
+        if isinstance(model, BayesianModel):
+            self.state_names_map = {}
+            for node in model.nodes():
+                cpd = model.get_cpds(node)
+                if isinstance(cpd, TabularCPD):
+                    self.cardinality[node] = cpd.variable_card
+                    cpd = cpd.to_factor()
+                for var in cpd.scope():
+                    self.factors[var].append(cpd)
+                self.state_names_map.update(cpd.no_to_name)
+
+        elif isinstance(model, JunctionTree):
+            self.cardinality = model.get_cardinality()
+
+            for factor in model.get_factors():
+                for var in factor.variables:
+                    self.factors[var].append(factor)
+    
     def _get_working_factors(self, evidence):
         """
         Uses the evidence given to the query methods to modify the factors before running
         the variable elimination algorithm.
-
         Parameters
         ----------
         evidence: dict
-            Dict of the form {variable: state} or {variable: [states]}
-
+            Dict of the form {variable: state}
         Returns
         -------
         dict: Modified working factors.
@@ -48,20 +77,19 @@ class VariableElimination(Inference):
                     for var in factor_reduced.scope():
                         working_factors[var].remove((factor, origin))
                         working_factors[var].add((factor_reduced, evidence_var))
-                del working_factors[evidence_var]
+                if type(evidence[evidence_var]) != list:
+                    del working_factors[evidence_var]
         return working_factors
-
+    
     def _get_elimination_order(
-        self, variables, evidence, elimination_order, show_progress=True
+        self, variables, evidence, elimination_order="minfill", show_progress=False
     ):
         """
         Deals with all elimination order parameters given to _variable_elimination method
         and returns a list of variables that are to be eliminated
-
         Parameters
         ----------
         elimination_order: str or list
-
         Returns
         -------
         list: A list of variables names in the order they need to be eliminated.
@@ -71,11 +99,10 @@ class VariableElimination(Inference):
             for key in evidence:
                 if type(evidence[key]) != list:
                     not_evidence_eliminate.append(key)
-
         to_eliminate = (
             set(self.variables)
             - set(variables)
-            - set(evidence.keys() if evidence else [])
+            - set(not_evidence_eliminate)
         )
 
         # Step 1: If elimination_order is a list, verify it's correct and return.
@@ -113,7 +140,7 @@ class VariableElimination(Inference):
                 self.model
             ).get_elimination_order(nodes=to_eliminate, show_progress=show_progress)
             return elimination_order
-
+    
     def _variable_elimination(
         self,
         variables,
@@ -162,11 +189,12 @@ class VariableElimination(Inference):
         # Step 2: Prepare data structures to run the algorithm.
         eliminated_variables = set()
         # Get working factors and elimination order
+        tic = time.time()
         working_factors = self._get_working_factors(evidence)
+        toc = time.time()
         elimination_order = self._get_elimination_order(
             variables, evidence, elimination_order, show_progress=show_progress
         )
-
         # Step 3: Run variable elimination
         if show_progress:
             pbar = tqdm(elimination_order)
@@ -174,6 +202,7 @@ class VariableElimination(Inference):
             pbar = elimination_order
 
         for var in pbar:
+            tic = time.time()
             if show_progress:
                 pbar.set_description("Eliminating: {var}".format(var=var))
             # Removing all the factors containing the variables which are
@@ -189,15 +218,15 @@ class VariableElimination(Inference):
             for variable in phi.variables:
                 working_factors[variable].add((phi, var))
             eliminated_variables.add(var)
-
+            
         # Step 4: Prepare variables to be returned.
+        tic = time.time()
         final_distribution = set()
         for node in working_factors:
             for factor, origin in working_factors[node]:
                 if not set(factor.variables).intersection(eliminated_variables):
                     final_distribution.add((factor, origin))
         final_distribution = [factor for factor, _ in final_distribution]
-
         if joint:
             if isinstance(self.model, BayesianModel):
                 return factor_product(*final_distribution).normalize(inplace=False)
@@ -254,7 +283,7 @@ class VariableElimination(Inference):
             joint=joint,
             show_progress=show_progress,
         )
-
+    
     def max_marginal(
         self,
         variables=None,
@@ -788,3 +817,4 @@ class BeliefPropagation(Inference):
             for var in variables:
                 return_dict[var] = map_query_results[var]
             return return_dict
+

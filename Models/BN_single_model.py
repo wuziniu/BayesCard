@@ -20,6 +20,7 @@ class BN_Single():
         self.n_in_bin = dict()
         self.encoding = dict()
         self.mapping = dict()
+        self.domain = dict()
         self.max_value = dict()
         self.method = method
         self.model = None
@@ -45,7 +46,7 @@ class BN_Single():
             if col in ignore_cols:
                 table = table.drop(col, axis=1)
             else:
-                table[col], self.n_in_bin[col], self.encoding[col], self.mapping[col] = discretize_series(
+                table[col], self.n_in_bin[col], self.encoding[col], self.mapping[col], self.domain[col] = discretize_series(
                     table[col],
                     n_mcv=n_mcv,
                     n_bins=n_bins,
@@ -61,13 +62,13 @@ class BN_Single():
         if isinstance(val, float):
             return True
 
-    def get_attr_type(self, dataset, threshold=1000):
+    def get_attr_type(self, dataset, threshold=3000):
         attr_type = dict()
         for col in dataset.columns:
             n_unique = dataset[col].nunique()
             if n_unique == 2:
                 attr_type[col] = 'boolean'
-            elif n_unique >= len(dataset)/3 or (self.is_numeric(dataset[col].iloc[0]) and n_unique>threshold):
+            elif n_unique >= len(dataset)/20 or (self.is_numeric(dataset[col].iloc[0]) and n_unique>threshold):
                 attr_type[col] = 'continuous'
             else:
                 attr_type[col] = 'categorical'
@@ -83,7 +84,7 @@ class BN_Single():
             if type(value) == list:
                 enc_value = []
                 for val in value:
-                    if val in self.encoding[col]:
+                    if val not in self.encoding[col]:
                         enc_value.append(None)
                     else:
                         enc_value.append(self.encoding[col][val])
@@ -114,14 +115,11 @@ class BN_Single():
                     n_distinct.append(1)
                 else:
                     n_distinct.append(self.n_in_bin[col][enc_val][value[i]])
-            if len(n_distinct) == 1:
-                return n_distinct[0]
-            else:
-                return np.asarray(n_distinct)
+            return np.asarray(n_distinct)
 
     def learn_model_structure(self, dataset, attr_type=None, rows_to_use=500000, n_mcv=30, n_bins=60,
                               ignore_cols=['id'], algorithm="greedy", drop_na=True, max_parents=2, root=None,
-                              n_jobs=8, return_model=False, return_dataset=False):
+                              n_jobs=8, return_model=False, return_dataset=False, discretized=False):
         """ Build the Pomegranate model from data, including structure learning and paramter learning
             ::Param:: dataset: pandas.dataframe
                       attr_type: type of attributes (binary, discrete or continuous)
@@ -142,10 +140,13 @@ class BN_Single():
             self.attr_type = self.get_attr_type(dataset)
         else:
             self.attr_type = attr_type
-
-        discrete_table = self.build_discrete_table(dataset, n_mcv, n_bins, drop_na, ignore_cols)
-        logger.info(f'Learning BN optimal structure from data with {self.nrows} rows and'
-                    f' {len(self.node_names)} cols')
+        t = time.time()
+        if not discretized:
+            discrete_table = self.build_discrete_table(dataset, n_mcv, n_bins, drop_na, ignore_cols)
+            logger.info(f'Discretizing table takes {time.time() - t} secs')
+            logger.info(f'Learning BN optimal structure from data with {self.nrows} rows and'
+                        f' {len(self.node_names)} cols')
+            print(f'Discretizing table takes {time.time() - t} secs')
         t = time.time()
         if len(discrete_table) <= rows_to_use:
             model = pomegranate.BayesianNetwork.from_samples(discrete_table,
@@ -162,6 +163,7 @@ class BN_Single():
                                                          n_jobs=n_jobs,
                                                          root=self.root)
         logger.info(f'Structure learning took {time.time() - t} secs.')
+        print(f'Structure learning took {time.time() - t} secs.')
 
         self.structure = model.structure
 

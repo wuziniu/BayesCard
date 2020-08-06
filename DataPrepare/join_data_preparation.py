@@ -6,7 +6,7 @@ import random
 import sys
 
 import pandas as pd
-from Structure.StatisticalTypes import MetaType
+from DataPrepare.StatisticalTypes import MetaType
 
 from DataPrepare.prepare_single_tables import find_relationships
 from DataPrepare.utils import create_random_join

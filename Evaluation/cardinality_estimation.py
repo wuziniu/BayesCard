@@ -5,26 +5,115 @@ import numpy as np
 import logging
 from time import perf_counter
 from Evaluation.utils import parse_query, save_csv
-from Structure.BN_ensemble_model import load_BN_ensemble
+#from Models.BN_ensemble_model import load_BN_ensemble
 
 logger = logging.getLogger(__name__)
 
-def parse_query_single_table(query):
-    result = dict()
-    useful = query.split(' WHERE ')[-1].strip()
-    for sub_query in useful.split(' AND '):
-        if len(sub_query.split(' in ')) != 1:
-            sub_query = sub_query.split(' in ')
-        elif len(sub_query.split(' == ')) != 1:
-            sub_query = sub_query.split(' == ')
-        else:
-            raise NotImplemented
-        col_name = sub_query[0].strip().split('.')[-1]
+
+OPS = {
+    '>': np.greater,
+    '<': np.less,
+    '>=': np.greater_equal,
+    '<=': np.less_equal,
+    '=': np.equal,
+    '==': np.equal
+}
+
+
+def str_pattern_matching(s):
+    # split the string "attr==value" to ('attr', '=', 'value')
+    op_start = 0
+    if len(s.split(' IN ')) != 1:
+        s = s.split(' IN ')
+        attr = s[0].strip()
         try:
-            value = list(ast.literal_eval(sub_query[1].strip()))
+            value = list(ast.literal_eval(s[1].strip()))
         except:
-            value = sub_query[1].strip()[1:][:-1].split(',')
-        result[col_name] = value
+            value = s[1].strip()[1:][:-1].split(',')
+        return attr, 'in', value
+
+    for i in range(len(s)):
+        if s[i] in OPS:
+            op_start = i
+            if i + 1 < len(s) and s[i + 1] in OPS:
+                op_end = i + 1
+            else:
+                op_end = i
+            break
+    attr = s[:op_start]
+    value = s[(op_end + 1):]
+    ops = s[op_start:(op_end + 1)]
+    try:
+        value = list(ast.literal_eval(s[1].strip()))
+    except:
+        try:
+            value = int(value)
+        except:
+            try:
+                value = float(value)
+            except:
+                value = value
+    return attr.strip(), ops.strip(), value
+
+def construct_table_query(BN, table_query, attr, ops, val, epsilon=1e-6):
+    if BN is None or attr not in BN.attr_type:
+        return None
+    if BN.attr_type[attr] == 'continuous':
+        if ops == ">=":
+            query_domain = [val, np.infty]
+        elif ops == ">":
+            query_domain = [val + epsilon, np.infty]
+        elif ops == "<=":
+            query_domain = [-np.infty, val]
+        elif ops == "<":
+            query_domain = [-np.infty, val - epsilon]
+        elif ops == "=" or ops == "==":
+            query_domain = [val, val]
+        else:
+            assert False, f"operation {ops} is invalid for continous domain"
+
+        if attr not in table_query:
+            table_query[attr] = query_domain
+        else:
+            prev_l = table_query[attr][0]
+            prev_r = table_query[attr][1]
+            query_domain = [max(prev_l, query_domain[0]), min(prev_r, query_domain[1])]
+            table_query[attr] = query_domain
+
+    else:
+        attr_domain = BN.domain[attr]
+        if type(attr_domain[0]) != str:
+            attr_domain = np.asarray(attr_domain)
+        if ops == "in":
+            assert type(val) == list, "use list for in query"
+            query_domain = val
+        elif ops == "=" or ops == "==":
+            if type(val) == list:
+                query_domain = val
+            else:
+                query_domain = [val]
+        else:
+            if type(val) == list:
+                assert len(val) == 1
+                val = val[0]
+                assert (type(val) == int or type(val) == float)
+            operater = OPS[ops]
+            query_domain = list(attr_domain[operater(attr_domain, val)])
+
+        if attr not in table_query:
+            table_query[attr] = query_domain
+        else:
+            query_domain = [i for i in query_domain if i in table_query[attr]]
+            table_query[attr] = query_domain
+
+    return table_query
+
+def parse_query_single_table(query, BN):
+    useful = query.split(' WHERE ')[-1].strip()
+    result = dict()
+    for sub_query in useful.split(' AND '):
+        attr, ops, value = str_pattern_matching(sub_query.strip())
+        construct_table_query(BN, result, attr, ops, value)
     return result
 
 
@@ -45,7 +134,7 @@ def evaluate_card(bn, query_filename='/home/ziniu.wzn/deepdb-public/benchmarks/i
     return latencies, error
 
 def single_table_experiment():
-    from Structure.pgmpy_BN import Pgmpy_BN
+    from Models.pgmpy_BN import Pgmpy_BN
     df = pd.read_hdf("/home/ziniu.wzn/imdb-benchmark/gen_single_light/title.hdf")
     new_cols = []
     for col in df.columns:
@@ -71,92 +160,38 @@ def single_table_experiment():
     jt_latency, jt_error = evaluate_card(BN)
     np.save('jt_latency', np.asarray(jt_latency))
     np.save('jt_error', np.asarray(jt_error))
-
-def evaluate_cardinalities(ensemble_location,  query_filename, target_csv_path, schema,
-                           rdc_spn_selection, pairwise_rdc_path,
-                           true_cardinalities_path='./benchmarks/job-light/sql/job_light_true_cardinalities.csv',
-                           max_variants=1, merge_indicator_exp=False, exploit_overlapping=False, min_sample_ratio=0):
-    """
-    Loads ensemble and evaluates cardinality for every query in query_filename
-    :param exploit_overlapping:
-    :param min_sample_ratio:
-    :param max_variants:
-    :param merge_indicator_exp:
-    :param target_csv_path:
-    :param query_filename:
-    :param true_cardinalities_path:
-    :param ensemble_location:
-    :param physical_db_name:
-    :param schema:
-    :return:
-    """
-    if true_cardinalities_path is not None:
-        df_true_card = pd.read_csv(true_cardinalities_path)
-
-    # load ensemble
-    bn_ensemble = load_BN_ensemble(ensemble_location, build_reverse_dict=True)
-
-    csv_rows = []
-    q_errors = []
-
+    
+def evaluate_cardinality(BN_e, schema, query_path, true_cardinalities_path):
     # read all queries
-    with open(query_filename) as f:
+    with open(query_path) as f:
         queries = f.readlines()
-
+    df_true_card = pd.read_csv(true_cardinalities_path)
     latencies = []
+    q_errors = []
     for query_no, query_str in enumerate(queries):
 
-        query_str = query_str.strip()
-        logger.debug(f"Predicting cardinality for query {query_no}: {query_str}")
+        print(f"Predicting cardinality for query {query_no}: {query_str}")
 
         query = parse_query(query_str.strip(), schema)
-
         cardinality_true = df_true_card.loc[df_true_card['query_no'] == query_no, ['cardinality_true']].values[0][0]
-
         card_start_t = perf_counter()
-        _, factors, cardinality_predict, factor_values = bn_ensemble \
-            .cardinality(query, rdc_spn_selection=rdc_spn_selection, pairwise_rdc_path=pairwise_rdc_path,
-                         merge_indicator_exp=merge_indicator_exp, max_variants=max_variants,
-                         exploit_overlapping=exploit_overlapping, return_factor_values=True)
+        cardinality_predict = BN_e.naive_cardinality(query)
+        if cardinality_predict is None:
+            continue
         card_end_t = perf_counter()
         latency_ms = (card_end_t - card_start_t) * 1000
-
-        logger.debug(f"\t\tLatency: {latency_ms:.2f}ms")
-        logger.debug(f"\t\tTrue: {cardinality_true}")
-        logger.debug(f"\t\tPredicted: {cardinality_predict}")
-
-        q_error = max(cardinality_predict / cardinality_true, cardinality_true / cardinality_predict)
         if cardinality_predict == 0 and cardinality_true == 0:
             q_error = 1.0
+        elif cardinality_predict == 0:
+            cardinality_predict = 1
+        elif cardinality_true == 0:
+            cardinality_true = 1
 
-        logger.debug(f"Q-Error was: {q_error}")
-        q_errors.append(q_error)
-        csv_rows.append({'query_no': query_no,
-                         'query': query_str,
-                         'cardinality_predict': cardinality_predict,
-                         'cardinality_true': cardinality_true,
-                         'latency_ms': latency_ms
-                         })
+        q_error = max(cardinality_predict / cardinality_true, cardinality_true / cardinality_predict)
+        print(f"latency: {latency_ms} and error: {q_error}")
         latencies.append(latency_ms)
-
-    # print percentiles of published JOB-light
-    q_errors = np.array(q_errors)
-    q_errors.sort()
-    logger.info(f"{q_errors[-10:]}")
-    # https://arxiv.org/pdf/1809.00677.pdf
-    ibjs_vals = [1.59, 150, 3198, 14309, 590]
-    mcsn_vals = [3.82, 78.4, 362, 927, 57.9]
-    for i, percentile in enumerate([50, 90, 95, 99]):
-        logger.info(f"Q-Error {percentile}%-Percentile: {np.percentile(q_errors, percentile)} (vs. "
-                    f"MCSN: {mcsn_vals[i]} and IBJS: {ibjs_vals[i]})")
-
-    logger.info(f"Q-Mean wo inf {np.mean(q_errors[np.isfinite(q_errors)])} (vs. "
-                f"MCSN: {mcsn_vals[-1]} and IBJS: {ibjs_vals[-1]})")
-    logger.info(f"Latency avg: {np.mean(latencies):.2f}ms")
-
-    # write to csv
-    save_csv(csv_rows, target_csv_path)
-
+        q_errors.append(q_error)
+    return latencies, q_errors
 
 
 if __name__ == "main":

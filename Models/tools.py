@@ -59,6 +59,7 @@ def discretize_series(series: pd.Series, n_mcv, n_bins, is_continous=False, cont
         # Histogram for continuous data
         if not continuous_bins:
             continuous_bins = n_bins * 2
+        domains = (s.min(), s.max())
         temp = pd.qcut(s, q=continuous_bins, duplicates='drop')
         categ = dict()
         val = 0
@@ -73,13 +74,13 @@ def discretize_series(series: pd.Series, n_mcv, n_bins, is_continous=False, cont
         if drop_na:
             s = s.cat.add_categories(int(val))
             s = s.fillna(val)  # Replace np.nan with some integer that is not in encoding
-        return s, None, None, mapping
+        return s, None, None, mapping, domains
         
     
     # Remove trailing whitespace
     if s.dtype == 'object':
         s = s.str.rstrip()
-
+    domains = list(s.unique())
     # Treat most common values
     value_counts = s.value_counts()
     n_mcv = len(value_counts) if n_mcv == -1 else n_mcv
@@ -112,5 +113,5 @@ def discretize_series(series: pd.Series, n_mcv, n_bins, is_continous=False, cont
         #temp = temp.cat.add_categories(int(n_mcv+n_bins+1))
         temp = temp.fillna(n_mcv+n_bins+1)  # Replace np.nan with some integer that is not in encoding
 
-    return temp, n_distinct, encoding, None
+    return temp, n_distinct, encoding, None, domains
 

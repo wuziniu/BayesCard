@@ -20,9 +20,29 @@ class Pgmpy_BN(BN_Single):
         """
         BN_Single.__init__(self, table_name, method, debug)
         self.infer_algo = infer_algo
+    
+    def realign(self, encode_value, n_distinct):
+        """Discard the invalid and duplicated values in encode_value and n_distinct and realign the two
+        """
+        if type(encode_value) != list and type(n_distinct) != list:
+            return encode_value, n_distinct
+        
+        assert len(encode_value) == len(n_distinct)
+        res_value = []
+        res_n_distinct = []
+        for i, c in enumerate(encode_value):
+            if c is not None:
+                if c in res_value:
+                    index = res_value.index(c)
+                    res_n_distinct[index] += n_distinct[i]
+                    res_n_distinct[index] = min(res_n_distinct[index], 1)
+                else:
+                    res_value.append(c)
+                    res_n_distinct.append(n_distinct[i])
+        return res_value, res_n_distinct
 
     def build_from_data(self, dataset, attr_type=None, sample_size=1000000, n_mcv=30, n_bins=60, ignore_cols=['id'],
-                        algorithm="chow-liu", drop_na=True, max_parents=-1, root=0, n_jobs=8):
+                        algorithm="chow-liu", drop_na=True, max_parents=-1, root=0, n_jobs=8, discretized=False):
         """ Build the Pomegranate model from data, including structure learning and paramter learning
             ::Param:: dataset: pandas.dataframe
                       attr_type: type of attributes (binary, discrete or continuous)
@@ -36,11 +56,13 @@ class Pgmpy_BN(BN_Single):
         if algorithm != "junction":
             discrete_table = self.learn_model_structure(dataset, attr_type, sample_size,
                                                         n_mcv, n_bins, ignore_cols, algorithm,
-                                                        drop_na, max_parents, root, n_jobs, return_dataset=True)
+                                                        drop_na, max_parents, root, n_jobs, 
+                                                        return_dataset=True, discretized=discretized)
         else:
             discrete_table = self.learn_model_structure(dataset, attr_type, sample_size,
-                                                        n_mcv, n_bins, ignore_cols, 'exact',
-                                                        drop_na, max_parents, root, n_jobs, return_dataset=True)
+                                                        n_mcv, n_bins, ignore_cols, 'chow-liu',
+                                                        drop_na, max_parents, root, n_jobs, 
+                                                        return_dataset=True, discretized=discretized)
         spec = []
         orphans = []
         for i, parents in enumerate(self.structure):
@@ -55,10 +77,7 @@ class Pgmpy_BN(BN_Single):
             self.model.add_node(o)
         logger.info('calling pgm.BayesianModel.fit...')
         t = time.time()
-        if len(discrete_table) > 10 * sample_size:
-            self.model.fit(discrete_table.sample(n=10 * sample_size))
-        else:
-            self.model.fit(discrete_table)
+        self.model.fit(discrete_table)
         if algorithm == "junction":
             try:
                 self.model = self.model.to_junction_tree()
@@ -67,6 +86,7 @@ class Pgmpy_BN(BN_Single):
                 logger.warning(
                     "This BN is not able to transform into junction tree, probably because it's not connected, just use BN")
         logger.info(f"done, took {time.time() - t} secs.")
+        print(f"done, parameter learning took {time.time() - t} secs.")
         self.init_inference_method()
 
     def init_inference_method(self):
@@ -120,12 +140,12 @@ class Pgmpy_BN(BN_Single):
             # binary_search to find a good starting point
             if i == j:
                 return i
-            m = int((j - i) / 2)
+            m = int(i + (j - i) / 2)
             interval = self.mapping[col][m]
-            if left > interval.right:
-                binary_search(m, j)
-            elif right < interval.left:
-                binary_search(i, m)
+            if left >= interval.right:
+                return binary_search(m, j)
+            elif right <= interval.left:
+                return binary_search(i, m)
             else:
                 return m
 
@@ -133,7 +153,7 @@ class Pgmpy_BN(BN_Single):
         if left is None: left = -np.Inf
         if right is None: right = np.Inf
         query = []
-        coverage = dict()
+        coverage = []
         start_point = binary_search(0, len(self.mapping[col]))
         start_point_left = start_point
         start_point_right = start_point + 1
@@ -145,20 +165,20 @@ class Pgmpy_BN(BN_Single):
                 cover = cal_coverage(left, right, self.mapping[col][start_point_left])
                 if cover != 0:
                     query.append(start_point_left)
-                    coverage[start_point_left] = cover
+                    coverage.append(cover)
                     start_point_left -= 1
                 else:
                     indicator_left = False
 
             if indicator_right:
-                cover = cal_coverage(left, right, self.mapping[start_point_right])
+                cover = cal_coverage(left, right, self.mapping[col][start_point_right])
                 if cover != 0:
                     query.append(start_point_right)
-                    coverage[start_point_right] = cover
+                    coverage.append(cover)
                     start_point_right += 1
                 else:
                     indicator_right = False
-        return query, coverage
+        return query, np.asarray(coverage)
 
     def one_iter_of_infer(self, query, n_distinct):
         """Performance a BP in random order.
@@ -219,7 +239,17 @@ class Pgmpy_BN(BN_Single):
         n_distinct = dict()
         for attr in query:
             if self.attr_type[attr] == 'continuous':
-                n_distinct[attr] = coverage[attr]
+                if coverage is None:
+                    l = max(self.domain[attr][0], query[attr][0])
+                    r = min(self.domain[attr][1], query[attr][1])
+                    if l > r:
+                        if return_prob:
+                            return (0, nrows)
+                        return 0
+                    query[attr], n_distinct[attr] = self.continuous_range_map(attr, (l, r))
+                    
+                else:
+                    n_distinct[attr] = coverage[attr]
             else:
                 encode_value = self.apply_encoding_to_value(query[attr], attr)
                 if encode_value is None or (encode_value == []):
@@ -227,8 +257,7 @@ class Pgmpy_BN(BN_Single):
                         return (0, nrows)
                     return 0
                 n_distinct[attr] = self.apply_ndistinct_to_value(encode_value, query[attr], attr)
-                query[attr] = encode_value
-            query[attr] = []
+                query[attr], n_distinct[attr] = self.realign(encode_value, n_distinct[attr])
 
         if self.infer_algo == "exact" or num_samples == 1:
             # Using topological order to infer probability
@@ -258,7 +287,7 @@ class Pgmpy_BN(BN_Single):
                 p_estimates.append(self.one_iter_of_infer(query, n_distinct))
             p_estimate = sum(p_estimates) / num_samples
 
-        print(p_estimate)
         if return_prob:
             return (p_estimate, nrows)
         return round(p_estimate * nrows)
+    
