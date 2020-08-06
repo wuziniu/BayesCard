@@ -5,6 +5,7 @@ from collections import defaultdict
 from itertools import chain
 import networkx as nx
 import numpy as np
+import time
 from tqdm import tqdm
 
 from Pgmpy.factors import factor_product
@@ -48,7 +49,40 @@ class VariableElimination(object):
             for factor in model.get_factors():
                 for var in factor.variables:
                     self.factors[var].append(factor)
-    
+
+
+class VariableElimination(object):
+    def __init__(self, model):
+        self.model = model
+        model.check_model()
+
+        if isinstance(model, JunctionTree):
+            self.variables = set(chain(*model.nodes()))
+        else:
+            self.variables = model.nodes()
+
+        self.cardinality = {}
+        self.factors = defaultdict(list)
+
+        if isinstance(model, BayesianModel):
+            self.state_names_map = {}
+            for node in model.nodes():
+                cpd = model.get_cpds(node)
+                if isinstance(cpd, TabularCPD):
+                    self.cardinality[node] = cpd.variable_card
+                    cpd = cpd.to_factor()
+                for var in cpd.scope():
+                    self.factors[var].append(cpd)
+                self.state_names_map.update(cpd.no_to_name)
+
+        elif isinstance(model, JunctionTree):
+            self.cardinality = model.get_cardinality()
+
+            for factor in model.get_factors():
+                for var in factor.variables:
+                    self.factors[var].append(factor)
+
+
     def _get_working_factors(self, evidence):
         """
         Uses the evidence given to the query methods to modify the factors before running
@@ -81,9 +115,7 @@ class VariableElimination(object):
                     del working_factors[evidence_var]
         return working_factors
     
-    def _get_elimination_order(
-        self, variables, evidence, elimination_order="minfill", show_progress=False
-    ):
+    def _get_elimination_order(self, variables, evidence, elimination_order="minfill", show_progress=False):
         """
         Deals with all elimination order parameters given to _variable_elimination method
         and returns a list of variables that are to be eliminated
@@ -107,13 +139,13 @@ class VariableElimination(object):
 
         # Step 1: If elimination_order is a list, verify it's correct and return.
         if hasattr(elimination_order, "__iter__") and (
-            not isinstance(elimination_order, str)
+                not isinstance(elimination_order, str)
         ):
             if any(
-                var in elimination_order
-                for var in set(variables).union(
-                    set(evidence.keys() if evidence else [])
-                )
+                    var in elimination_order
+                    for var in set(variables).union(
+                        set(evidence.keys() if evidence else [])
+                    )
             ):
                 raise ValueError(
                     "Elimination order contains variables which are in"
@@ -128,7 +160,7 @@ class VariableElimination(object):
 
         # Step 3: If elimination order is a str, compute the order using the specified heuristic.
         elif isinstance(elimination_order, str) and isinstance(
-            self.model, BayesianModel
+                self.model, BayesianModel
         ):
             heuristic_dict = {
                 "weightedminfill": WeightedMinFill,
@@ -142,13 +174,13 @@ class VariableElimination(object):
             return elimination_order
     
     def _variable_elimination(
-        self,
-        variables,
-        operation,
-        evidence=None,
-        elimination_order="MinFill",
-        joint=True,
-        show_progress=False,
+            self,
+            variables,
+            operation,
+            evidence=None,
+            elimination_order="MinFill",
+            joint=True,
+            show_progress=False,
     ):
         """
         Implementation of a generalized variable elimination.
@@ -242,12 +274,12 @@ class VariableElimination(object):
             return query_var_factor
 
     def query(
-        self,
-        variables,
-        evidence=None,
-        elimination_order="MinFill",
-        joint=True,
-        show_progress=False,
+            self,
+            variables,
+            evidence=None,
+            elimination_order="MinFill",
+            joint=True,
+            show_progress=False,
     ):
         """
         Parameters

@@ -5,7 +5,6 @@ import numpy as np
 import logging
 from time import perf_counter
 from Evaluation.utils import parse_query, save_csv
-#from Models.BN_ensemble_model import load_BN_ensemble
 
 logger = logging.getLogger(__name__)
 

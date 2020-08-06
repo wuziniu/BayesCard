@@ -290,4 +290,4 @@ class Pgmpy_BN(BN_Single):
         if return_prob:
             return (p_estimate, nrows)
         return round(p_estimate * nrows)
-    
+
