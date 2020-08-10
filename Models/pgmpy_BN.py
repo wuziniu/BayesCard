@@ -2,9 +2,9 @@ from Pgmpy.models import BayesianModel
 import numpy as np
 import copy
 import logging
-import itertools
 import time
 from Models.BN_single_model import BN_Single
+import itertools
 
 logger = logging.getLogger(__name__)
 
@@ -14,12 +14,15 @@ class Pgmpy_BN(BN_Single):
     Build a single Bayesian Network for a single table using pgmpy
     """
 
-    def __init__(self, table_name, method='Pome', debug=True, infer_algo=None):
+    def __init__(self, table_name, meta_info, method='Pome', debug=True, infer_algo=None):
         """
         infer_algo: inference method, choose between 'exact', 'BP'
         """
         BN_Single.__init__(self, table_name, method, debug)
         self.infer_algo = infer_algo
+        self.fanout_attr = meta_info.fanout_attr
+        self.fanout_attr_inverse = meta_info.fanout_attr_inverse
+        self.fanout_attr_positive = meta_info.fanout_attr_positive
     
     def realign(self, encode_value, n_distinct):
         """Discard the invalid and duplicated values in encode_value and n_distinct and realign the two
@@ -218,6 +221,37 @@ class Pgmpy_BN(BN_Single):
         card = len(gen.query(query_str))
         return card/sample_size
 
+    def query_decoding(self, query, coverage=None):
+        """
+        Convert the query to the encodings BN recognize
+        """
+        n_distinct = dict()
+        for attr in query:
+            if self.attr_type[attr] == 'continuous':
+                if coverage is None:
+                    l = max(self.domain[attr][0], query[attr][0])
+                    r = min(self.domain[attr][1], query[attr][1])
+                    if l > r:
+                        return None, None
+                    query[attr], n_distinct[attr] = self.continuous_range_map(attr, (l, r))
+
+                else:
+                    n_distinct[attr] = coverage[attr]
+            else:
+                encode_value = self.apply_encoding_to_value(query[attr], attr)
+                if encode_value is None or (encode_value == []):
+                    return None, None
+                n_distinct[attr] = self.apply_ndistinct_to_value(encode_value, query[attr], attr)
+                query[attr], n_distinct[attr] = self.realign(encode_value, n_distinct[attr])
+        return query, n_distinct
+
+    def get_fanout_values(self, fanout_attrs):
+        if len(fanout_attrs) == 1:
+            return self.fanouts[fanout_attrs[0]]
+        else:
+            fanout_attrs_val = [list(self.fanouts[i]) for i in fanout_attrs]
+            return np.asarray(list(itertools.product(*fanout_attrs_val)))
+
     def query(self, query, num_samples=1, coverage=None, return_prob=False, sample_size=10000):
         """Probability inference using Loopy belief propagation. For example estimate P(X=x, Y=y, Z=z)
            ::Param:: query: dictionary of the form {X:x, Y:y, Z:z}
@@ -236,28 +270,12 @@ class Pgmpy_BN(BN_Single):
             return p_estimate * self.nrows
 
         nrows = self.nrows
-        n_distinct = dict()
-        for attr in query:
-            if self.attr_type[attr] == 'continuous':
-                if coverage is None:
-                    l = max(self.domain[attr][0], query[attr][0])
-                    r = min(self.domain[attr][1], query[attr][1])
-                    if l > r:
-                        if return_prob:
-                            return (0, nrows)
-                        return 0
-                    query[attr], n_distinct[attr] = self.continuous_range_map(attr, (l, r))
-                    
-                else:
-                    n_distinct[attr] = coverage[attr]
+        query, n_distinct = self.query_decoding(query, coverage)
+        if query is None:
+            if return_prob:
+                return 0, nrows
             else:
-                encode_value = self.apply_encoding_to_value(query[attr], attr)
-                if encode_value is None or (encode_value == []):
-                    if return_prob:
-                        return (0, nrows)
-                    return 0
-                n_distinct[attr] = self.apply_ndistinct_to_value(encode_value, query[attr], attr)
-                query[attr], n_distinct[attr] = self.realign(encode_value, n_distinct[attr])
+                return 0
 
         if self.infer_algo == "exact" or num_samples == 1:
             # Using topological order to infer probability
@@ -290,4 +308,47 @@ class Pgmpy_BN(BN_Single):
         if return_prob:
             return (p_estimate, nrows)
         return round(p_estimate * nrows)
+
+    def expectation(self, query, fanout_attrs, num_samples=1, coverage=None, return_prob=False, sample_size=10000):
+        """
+        Calculating the expected value E[P(Q|F)*F]
+        Parameters
+        ----------
+        fanout_attrs: a list of fanout variables F, where we would like to compute the expectation
+        Rest parameters: the same as previous function .query().
+        """
+        if fanout_attrs is None or len(fanout_attrs) == 0:
+            return self.query(query, num_samples, coverage, return_prob, sample_size)
+        else:
+            query, n_distinct = self.query_decoding(query, coverage)
+            if query is None:
+                if return_prob:
+                    return 0, self.nrows
+                else:
+                    return 0
+            probsQF = self.infer_machine.query(fanout_attrs, evidence=query).values
+            if any(np.isnan(probsQF)):
+                if return_prob:
+                    return 0, self.nrows
+                else:
+                    return 0
+            else:
+                probsQF = probsQF / (np.sum(probsQF))
+            probsF = self.infer_machine.query(fanout_attrs).values
+            if any(np.isnan(probsF)):
+                if return_prob:
+                    return 0, self.nrows
+                else:
+                    return 0
+            else:
+                probsF = probsF / (np.sum(probsF))
+            probsQ, _ = self.query(query, num_samples, coverage, True)
+
+            exp = np.sum(probsQF/probsF*self.get_fanout_values(fanout_attrs)) * probsQ
+            if return_prob:
+                return exp, self.nrows
+            else:
+                return exp*self.nrows
+
+
 

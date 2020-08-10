@@ -21,6 +21,7 @@ class BN_Single():
         self.encoding = dict()
         self.mapping = dict()
         self.domain = dict()
+        self.fanouts = dict()
         self.max_value = dict()
         self.method = method
         self.model = None
@@ -46,7 +47,8 @@ class BN_Single():
             if col in ignore_cols:
                 table = table.drop(col, axis=1)
             else:
-                table[col], self.n_in_bin[col], self.encoding[col], self.mapping[col], self.domain[col] = discretize_series(
+                table[col], self.n_in_bin[col], self.encoding[col], self.mapping[col], self.domain[col], \
+                self.fanouts[col] = discretize_series(
                     table[col],
                     n_mcv=n_mcv,
                     n_bins=n_bins,
@@ -117,7 +119,7 @@ class BN_Single():
                     n_distinct.append(self.n_in_bin[col][enc_val][value[i]])
             return np.asarray(n_distinct)
 
-    def learn_model_structure(self, dataset, attr_type=None, rows_to_use=500000, n_mcv=30, n_bins=60,
+    def learn_model_structure(self, dataset, nrows=None, attr_type=None, rows_to_use=500000, n_mcv=30, n_bins=60,
                               ignore_cols=['id'], algorithm="greedy", drop_na=True, max_parents=2, root=None,
                               n_jobs=8, return_model=False, return_dataset=False, discretized=False):
         """ Build the Pomegranate model from data, including structure learning and paramter learning
@@ -129,7 +131,10 @@ class BN_Single():
             for other parameters, pomegranate gives a detailed explaination:
             https://pomegranate.readthedocs.io/en/latest/BayesianNetwork.html
         """
-        self.nrows = len(dataset)
+        if nrows is None:
+            self.nrows = len(dataset)
+        else:
+            self.nrows = nrows
         self.algorithm = algorithm
         self.max_parents = max_parents
         self.n_mcv = n_mcv

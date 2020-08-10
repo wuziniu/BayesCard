@@ -1,45 +1,53 @@
 import numbers
 import math
+import copy
+import numpy as np
 import pandas as pd
 
 
-def categorical_qcut(series, q, start_value):
+def categorical_qcut(series, q, start_value, fanout=0, fanout_values=[]):
     """Computes categorical quantiles of a pandas.Series objects."""
     bin_freq = 1 / q
     value_counts = series.value_counts(normalize=True).sort_index()
     
     bins = {}
-    n_distinct = {} # Count the number of distinct values per bin
+    n_distinct = {}    # Count the number of distinct values per bin
     encoding = {}
-    mapping = {}
     values_in_bin = []
     freq_in_bin = []
     cum_freq = 0
     
     value = start_value
     for i, (val, freq) in enumerate(value_counts.iteritems()):
-        if len(values_in_bin)==0:
+        if len(values_in_bin) == 0:
             left = i
         values_in_bin.append(val)
         freq_in_bin.append(freq)
         cum_freq += freq
         encoding[val] = value
         if cum_freq >= bin_freq or (i+1) == len(value_counts):
+            if fanout == 1:
+                fanout_values.append(np.sum(np.asarray(values_in_bin) * np.asarray(freq_in_bin) / cum_freq))
+            elif fanout == 2:
+                values_copy = copy.deepcopy(np.asarray(values_in_bin))
+                values_copy[values_copy == 0] = 1
+                fanout_values.append(np.sum(1 / values_copy * np.asarray(freq_in_bin) / cum_freq))
             values_in_bin = sorted(values_in_bin)
             n_distinct[value] = dict()
-            for i,v in enumerate(values_in_bin):
+            for j, v in enumerate(values_in_bin):
                 bins[v] = value
-                n_distinct[value][v]=freq_in_bin[i]/cum_freq
+                n_distinct[value][v] = freq_in_bin[j]/cum_freq
             values_in_bin = []
             freq_in_bin = []
             cum_freq = 0
-            value+=1
+            value += 1
 
-    return n_distinct, encoding
+    return n_distinct, encoding, fanout_values
 
 
 
-def discretize_series(series: pd.Series, n_mcv, n_bins, is_continous=False, continuous_bins=None, drop_na=True) -> pd.Series:
+def discretize_series(series: pd.Series, n_mcv, n_bins, is_continous=False, continuous_bins=None, drop_na=True,
+                      fanout=0):
     """
     Map every value to category, binning the small categories if there are more than n_mcv categories.
     Map intervals to categories for efficient model learning
@@ -54,7 +62,7 @@ def discretize_series(series: pd.Series, n_mcv, n_bins, is_continous=False, cont
     encoding = dict()
     mapping = dict()
 
-    if is_continous or (s.nunique() >= len(s) / 10 and isinstance(s.iloc[0], numbers.Number)):
+    if is_continous or (s.nunique() >= len(s) / 30 and isinstance(s.iloc[0], numbers.Number)):
         # Under this condition, we can assume we are dealing with continuous data
         # Histogram for continuous data
         if not continuous_bins:
@@ -74,13 +82,14 @@ def discretize_series(series: pd.Series, n_mcv, n_bins, is_continous=False, cont
         if drop_na:
             s = s.cat.add_categories(int(val))
             s = s.fillna(val)  # Replace np.nan with some integer that is not in encoding
-        return s, None, None, mapping, domains
+        return s, None, None, mapping, domains, []
         
     
     # Remove trailing whitespace
     if s.dtype == 'object':
         s = s.str.rstrip()
     domains = list(s.unique())
+    fanout_values = []
     # Treat most common values
     value_counts = s.value_counts()
     n_mcv = len(value_counts) if n_mcv == -1 else n_mcv
@@ -92,26 +101,30 @@ def discretize_series(series: pd.Series, n_mcv, n_bins, is_continous=False, cont
     val = 0
     for i in n_largest.index:
         encoding[i] = val
-        val+=1
+        if fanout == 1:
+            fanout_values.append(i)
+        elif fanout == 2:
+            fanout_values.append(1/max(i, 1))
+        val += 1
     
     # Treat least common values
     n_least_common = s[~most_common_mask].nunique()
     n_bins = min(n_least_common, n_bins)
     if n_least_common > 0:
         #encoding the least common string category to int category
-        n_distinct, nl_encoding = categorical_qcut(s[~most_common_mask], q=n_bins, start_value=val)
+        n_distinct, nl_encoding, fanout_values = categorical_qcut(s[~most_common_mask], n_bins, val, fanout, fanout_values)
         encoding.update(nl_encoding)
         
     #map the original value to encoded value
     temp = series.copy()
     for i in s.unique():
         if not math.isnan(i):
-            temp[s==i] = encoding[i]
+            temp[s == i] = encoding[i]
     del s
     
     if drop_na:
         #temp = temp.cat.add_categories(int(n_mcv+n_bins+1))
         temp = temp.fillna(n_mcv+n_bins+1)  # Replace np.nan with some integer that is not in encoding
 
-    return temp, n_distinct, encoding, None, domains
+    return temp, n_distinct, encoding, None, domains, np.asarray(fanout_values)
 
