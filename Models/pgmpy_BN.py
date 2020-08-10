@@ -8,6 +8,22 @@ import itertools
 
 logger = logging.getLogger(__name__)
 
+def build_meta_info(column_names):
+    meta_info = dict()
+    fanout_attr = []
+    fanout_attr_inverse = []
+    fanout_attr_positive = []
+    for col in column_names:
+        if col is not None and 'mul_' in col:
+            fanout_attr.append(col)
+            if '_nn' in column_names[col]:
+                fanout_attr_inverse.append(col)
+            else:
+                fanout_attr_positive.append(col)
+    meta_info['fanout_attr'] = fanout_attr
+    meta_info['fanout_attr_inverse'] = fanout_attr_inverse
+    meta_info['fanout_attr_positive'] = fanout_attr_positive
+    return meta_info
 
 class Pgmpy_BN(BN_Single):
     """
@@ -18,11 +34,8 @@ class Pgmpy_BN(BN_Single):
         """
         infer_algo: inference method, choose between 'exact', 'BP'
         """
-        BN_Single.__init__(self, table_name, method, debug)
+        BN_Single.__init__(self, table_name, meta_info, method, debug)
         self.infer_algo = infer_algo
-        self.fanout_attr = meta_info.fanout_attr
-        self.fanout_attr_inverse = meta_info.fanout_attr_inverse
-        self.fanout_attr_positive = meta_info.fanout_attr_positive
     
     def realign(self, encode_value, n_distinct):
         """Discard the invalid and duplicated values in encode_value and n_distinct and realign the two

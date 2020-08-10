@@ -15,8 +15,11 @@ class BN_Single():
     Initialize with an appropriate table_name.
     """
 
-    def __init__(self, table_name, method='Pome', debug=True):
+    def __init__(self, table_name, meta_info, method='Pome', debug=True):
         self.table_name = table_name
+        self.fanout_attr = meta_info['fanout_attr']
+        self.fanout_attr_inverse = meta_info['fanout_attr_inverse']
+        self.fanout_attr_positive = meta_info['fanout_attr_positive']
         self.n_in_bin = dict()
         self.encoding = dict()
         self.mapping = dict()
@@ -47,12 +50,18 @@ class BN_Single():
             if col in ignore_cols:
                 table = table.drop(col, axis=1)
             else:
+                f = 0
+                if col in self.fanout_attr_inverse:
+                    f = 2
+                elif col in self.fanout_attr_positive:
+                    f = 1
                 table[col], self.n_in_bin[col], self.encoding[col], self.mapping[col], self.domain[col], \
                 self.fanouts[col] = discretize_series(
                     table[col],
                     n_mcv=n_mcv,
                     n_bins=n_bins,
-                    drop_na=not drop_na
+                    drop_na=not drop_na,
+                    fanout=f
                 )
                 self.max_value[col] = int(table[col].max()) + 1
         self.node_names = list(table.columns)
