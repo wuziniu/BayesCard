@@ -4,6 +4,7 @@ from itertools import product
 from collections import namedtuple
 from warnings import warn
 import copy
+from numba import jit
 import numpy as np
 
 from Pgmpy.factors.base import BaseFactor
@@ -11,7 +12,6 @@ from Pgmpy.utils import StateNameMixin
 from Pgmpy.extern import tabulate
 
 State = namedtuple("State", ["var", "state"])
-
 
 class DiscreteFactor(BaseFactor, StateNameMixin):
     """
@@ -99,6 +99,7 @@ class DiscreteFactor(BaseFactor, StateNameMixin):
         """
         return self.variables
 
+    #@jit
     def get_cardinality(self, variables):
         """
         Returns cardinality of a given variable
@@ -121,6 +122,7 @@ class DiscreteFactor(BaseFactor, StateNameMixin):
 
         return {var: self.cardinality[self.variables.index(var)] for var in variables}
 
+    #@jit
     def assignment(self, index):
         """
         Returns a list of assignments for the corresponding index.
@@ -276,6 +278,7 @@ class DiscreteFactor(BaseFactor, StateNameMixin):
         if not inplace:
             return phi
 
+    @jit
     def reduce(self, values, inplace=True):
         """
         Reduces the factor to the context of given variable values.
@@ -304,24 +307,19 @@ class DiscreteFactor(BaseFactor, StateNameMixin):
             )
 
         # Check if all variables in values are in the factor
-        for var, _ in values:
-            if var not in self.variables:
-                raise ValueError(f"The variable: {var} is not in the factor")
+        #for var, _ in values:
+         #   if var not in self.variables:
+          #      raise ValueError(f"The variable: {var} is not in the factor")
 
         phi = self if inplace else self.copy()
 
         # Convert the state names to state number. If state name not found treat them as
         # state numbers.
-        try:
-            for i, (var, state_name) in enumerate(values):
-                if type(state_name) == list:
-                    values[i] = (var, [self.get_state_no(var, no) for no in state_name])
-                else:
-                    values[i] = (var, self.get_state_no(var, state_name))
-        except KeyError:
-            warn(
-                "Found unknown state name. Trying to switch to using all state names as state numbers"
-            )
+        for i, (var, state_name) in enumerate(values):
+            if type(state_name) == list:
+                values[i] = (var, [self.get_state_no(var, no) for no in state_name])
+            else:
+                values[i] = (var, self.get_state_no(var, state_name))
 
         var_index_to_del = []
         slice_ = [slice(None)] * len(self.variables)
@@ -357,6 +355,7 @@ class DiscreteFactor(BaseFactor, StateNameMixin):
         if not inplace:
             return phi
 
+    @jit
     def sum(self, phi1, inplace=True):
         """
         DiscreteFactor sum with `phi1`.
@@ -419,6 +418,7 @@ class DiscreteFactor(BaseFactor, StateNameMixin):
         if not inplace:
             return phi
 
+    @jit
     def product(self, phi1, inplace=True):
         """
         DiscreteFactor product with `phi1`.
@@ -482,6 +482,7 @@ class DiscreteFactor(BaseFactor, StateNameMixin):
         if not inplace:
             return phi
 
+    @jit
     def divide(self, phi1, inplace=True):
         """
         DiscreteFactor division by `phi1`.

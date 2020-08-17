@@ -149,6 +149,8 @@ class JoinDataPreparator:
         if self.cached_tables.get(path) is not None:
             return self.cached_tables[path]
 
+        hdf_name = path.split("/")[-1]
+        path = "/home/ziniu.wzn/imdb-benchmark/gen_single_light/" + hdf_name
         table_data = pd.read_hdf(path, key='df')
 
         # drop irrelevant attributes
@@ -273,8 +275,10 @@ class JoinDataPreparator:
             return df_full_samples.sample(sample_size), meta_types, null_values, full_join_size
         return df_full_samples, meta_types, null_values, full_join_size
 
-    def generate_n_samples_with_incremental_part(self, sample_size, post_sampling_factor=30, single_table=None, relationship_list=None,
-                           min_start_table_size=1, drop_redundant_columns=True, incremental_learning_rate=0, incremental_condition=None):
+    def generate_n_samples_with_incremental_part(self, sample_size, post_sampling_factor=30, single_table=None,
+                                                 relationship_list=None,
+                                                 min_start_table_size=1, drop_redundant_columns=True,
+                                                 incremental_learning_rate=0, incremental_condition=None):
         """
         Generates approximately sample_size samples of join.
         :param sample_size:
@@ -309,11 +313,11 @@ class JoinDataPreparator:
         #
         if incremental_learning_rate > 0:
             full_size = len(df_full_samples)
-            split_position = int(full_size * (100.0 - incremental_learning_rate)/100.0)
+            split_position = int(full_size * (100.0 - incremental_learning_rate) / 100.0)
             logging.debug(f"split position for dataset: {split_position} (full length: {full_size},"
                           f" incremenatal_rate: {incremental_learning_rate})")
             df_learn_samples = df_full_samples.iloc[0:split_position, :]
-            df_inc_samples =  df_full_samples.iloc[split_position:, :]
+            df_inc_samples = df_full_samples.iloc[split_position:, :]
         elif incremental_condition != None:
             import re
             column, value = re.split(" *[<] *", incremental_condition)
@@ -325,15 +329,17 @@ class JoinDataPreparator:
                 logging.info(
                     f"splitting dataset into {len(df_learn_samples)}:{len(df_inc_samples)} "
                     f"parts, according to condition ({incremental_condition}), incremental_rate"
-                    f": {100.0*len(df_inc_samples)/len(df_full_samples)}% @@@"
+                    f": {100.0 * len(df_inc_samples) / len(df_full_samples)}% @@@"
                 )
             else:
-                print("Currently only '<' operator is supported for incremental_condition (i.e. title.production_year<2015)")
+                print(
+                    "Currently only '<' operator is supported for incremental_condition (i.e. title.production_year<2015)")
                 sys.exit(1)
         else:
             df_inc_samples = pd.DataFrame([])
             df_learn_samples = df_full_samples
-        logging.info(f"split full sample dataset into parts: initial learning size: {len(df_learn_samples)}, incremental: {len(df_inc_samples)}")
+        logging.info(
+            f"split full sample dataset into parts: initial learning size: {len(df_learn_samples)}, incremental: {len(df_inc_samples)}")
         return df_learn_samples, df_inc_samples, meta_types, null_values, full_join_size
 
     def generate_join_sample(self, single_table=None, relationship_list=None, min_start_table_size=1, sample_rate=1,
@@ -346,7 +352,8 @@ class JoinDataPreparator:
         assert single_table is None or relationship_list is None, "Either specify a single table or a set of relations"
         assert single_table is not None or relationship_list is not None, "Provide either table or set of relations"
 
-        logging.debug(f"generate_join_sample(single_table={single_table}, relationship_list={relationship_list}, split_condition={split_condition})")
+        logging.debug(
+            f"generate_join_sample(single_table={single_table}, relationship_list={relationship_list}, split_condition={split_condition})")
         if single_table is not None:
 
             df_samples = self._get_table_data(self.table_meta_data[single_table]['hdf_path'], single_table)

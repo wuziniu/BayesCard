@@ -1,7 +1,6 @@
 from abc import abstractmethod
 from functools import reduce
 
-
 class BaseFactor(object):
     """
     Base class for Factors. Any Factor implementation should inherit this class.
@@ -35,7 +34,6 @@ def factor_product(*args):
         raise NotImplementedError(
             "All the args are expected to be instances of the same factor class."
         )
-
     return reduce(lambda phi1, phi2: phi1 * phi2, args)
 
 

@@ -48,7 +48,7 @@ class BayesianModel(DAG):
         if ebunch:
             self.add_edges_from(ebunch)
         self.cpds = []
-        self.cardinalities = defaultdict(int)
+        self.cardinalities = self.get_cardinality()
 
     def add_edge(self, u, v, **kwargs):
         """
@@ -204,7 +204,7 @@ class BayesianModel(DAG):
         """
 
         if node:
-            return self.get_cpds(node).cardinality[0]
+            return self.cardinalities[node]
         else:
             cardinalities = defaultdict(int)
             for cpd in self.cpds:

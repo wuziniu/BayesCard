@@ -333,13 +333,24 @@ class Pgmpy_BN(BN_Single):
         if fanout_attrs is None or len(fanout_attrs) == 0:
             return self.query(query, num_samples, coverage, return_prob, sample_size)
         else:
+            query_prob = copy.deepcopy(query)
+            probsQ, _ = self.query(query_prob, num_samples, coverage, True)
+            if probsQ == 0:
+                if return_prob:
+                    return 0, self.nrows
+                else:
+                    return 0
+            print(f"probsQ {probsQ}")
+
             query, n_distinct = self.query_decoding(query, coverage)
             if query is None:
                 if return_prob:
                     return 0, self.nrows
                 else:
                     return 0
+            print(query)
             probsQF = self.infer_machine.query(fanout_attrs, evidence=query).values
+            print(probsQF)
             if any(np.isnan(probsQF)):
                 if return_prob:
                     return 0, self.nrows
@@ -347,21 +358,13 @@ class Pgmpy_BN(BN_Single):
                     return 0
             else:
                 probsQF = probsQF / (np.sum(probsQF))
-            probsF = self.infer_machine.query(fanout_attrs).values
-            if any(np.isnan(probsF)):
-                if return_prob:
-                    return 0, self.nrows
-                else:
-                    return 0
-            else:
-                probsF = probsF / (np.sum(probsF))
-            probsQ, _ = self.query(query, num_samples, coverage, True)
 
-            exp = np.sum(probsQF/probsF*self.get_fanout_values(fanout_attrs)) * probsQ
+            print(np.sum(probsQF * self.get_fanout_values(fanout_attrs)))
+            exp = np.sum(probsQF * self.get_fanout_values(fanout_attrs)) * probsQ
             if return_prob:
                 return exp, self.nrows
             else:
-                return exp*self.nrows
+                return exp * self.nrows
 
 
 

@@ -1,55 +1,22 @@
-#!/usr/bin/env python3
-import copy
 import itertools
-from collections import defaultdict
-from itertools import chain
 import networkx as nx
 import numpy as np
 import time
 from tqdm import tqdm
-
-from Pgmpy.factors import factor_product
+from collections import defaultdict
+from itertools import chain
+import copy
 from Pgmpy.inference import Inference
+from Pgmpy.factors import factor_product
+from Pgmpy.models import BayesianModel, JunctionTree
 from Pgmpy.inference.EliminationOrder import (
     WeightedMinFill,
     MinNeighbors,
     MinFill,
     MinWeight,
 )
-from Pgmpy.models import JunctionTree, BayesianModel
 from Pgmpy.factors.discrete import TabularCPD
 
-class VariableElimination(object):
-    def __init__(self, model):
-        self.model = model
-        model.check_model()
-
-        if isinstance(model, JunctionTree):
-            self.variables = set(chain(*model.nodes()))
-        else:
-            self.variables = model.nodes()
-
-        self.cardinality = {}
-        self.factors = defaultdict(list)
-
-        if isinstance(model, BayesianModel):
-            self.state_names_map = {}
-            for node in model.nodes():
-                cpd = model.get_cpds(node)
-                if isinstance(cpd, TabularCPD):
-                    self.cardinality[node] = cpd.variable_card
-                    cpd = cpd.to_factor()
-                for var in cpd.scope():
-                    self.factors[var].append(cpd)
-                self.state_names_map.update(cpd.no_to_name)
-
-        elif isinstance(model, JunctionTree):
-            self.cardinality = model.get_cardinality()
-
-            for factor in model.get_factors():
-                for var in factor.variables:
-                    self.factors[var].append(factor)
-
 
 class VariableElimination(object):
     def __init__(self, model):
@@ -81,6 +48,20 @@ class VariableElimination(object):
             for factor in model.get_factors():
                 for var in factor.variables:
                     self.factors[var].append(factor)
+
+        self.root = self.get_root
+
+    def get_root(self):
+        """Returns the network's root node."""
+        def find_root(graph, node):
+            predecessor = next(self.model.predecessors(node), None)
+            if predecessor:
+                root = find_root(graph, predecessor)
+            else:
+                root = node
+            return root
+
+        return find_root(self, list(self.model.nodes)[0])
 
 
     def _get_working_factors(self, evidence):
@@ -114,8 +95,10 @@ class VariableElimination(object):
                 if type(evidence[evidence_var]) != list:
                     del working_factors[evidence_var]
         return working_factors
-    
-    def _get_elimination_order(self, variables, evidence, elimination_order="minfill", show_progress=False):
+
+    def _get_elimination_order(
+            self, variables, evidence, elimination_order="minfill", show_progress=False
+    ):
         """
         Deals with all elimination order parameters given to _variable_elimination method
         and returns a list of variables that are to be eliminated
@@ -132,9 +115,9 @@ class VariableElimination(object):
                 if type(evidence[key]) != list:
                     not_evidence_eliminate.append(key)
         to_eliminate = (
-            set(self.variables)
-            - set(variables)
-            - set(not_evidence_eliminate)
+                set(self.variables)
+                - set(variables)
+                - set(not_evidence_eliminate)
         )
 
         # Step 1: If elimination_order is a list, verify it's correct and return.
@@ -172,13 +155,13 @@ class VariableElimination(object):
                 self.model
             ).get_elimination_order(nodes=to_eliminate, show_progress=show_progress)
             return elimination_order
-    
+
     def _variable_elimination(
             self,
             variables,
             operation,
             evidence=None,
-            elimination_order="MinFill",
+            elimination_order="weightedminfill",
             joint=True,
             show_progress=False,
     ):
@@ -224,9 +207,11 @@ class VariableElimination(object):
         tic = time.time()
         working_factors = self._get_working_factors(evidence)
         toc = time.time()
+        print(f"getting working factors takes {toc - tic} secs")
         elimination_order = self._get_elimination_order(
             variables, evidence, elimination_order, show_progress=show_progress
         )
+        print(f"getting elimination orders takes {time.time() - toc} secs")
         # Step 3: Run variable elimination
         if show_progress:
             pbar = tqdm(elimination_order)
@@ -235,6 +220,7 @@ class VariableElimination(object):
 
         for var in pbar:
             tic = time.time()
+            print(var)
             if show_progress:
                 pbar.set_description("Eliminating: {var}".format(var=var))
             # Removing all the factors containing the variables which are
@@ -250,7 +236,8 @@ class VariableElimination(object):
             for variable in phi.variables:
                 working_factors[variable].add((phi, var))
             eliminated_variables.add(var)
-            
+            print(f"eliminating {var} takes {time.time() - tic} secs")
+
         # Step 4: Prepare variables to be returned.
         tic = time.time()
         final_distribution = set()
@@ -259,6 +246,8 @@ class VariableElimination(object):
                 if not set(factor.variables).intersection(eliminated_variables):
                     final_distribution.add((factor, origin))
         final_distribution = [factor for factor, _ in final_distribution]
+        print(final_distribution)
+        print(f"the rest takes {time.time() - tic} secs")
         if joint:
             if isinstance(self.model, BayesianModel):
                 return factor_product(*final_distribution).normalize(inplace=False)
@@ -271,6 +260,7 @@ class VariableElimination(object):
                 query_var_factor[query_var] = phi.marginalize(
                     list(set(variables) - set([query_var])), inplace=False
                 ).normalize(inplace=False)
+            print(f"the rest takes {time.time() - tic} secs")
             return query_var_factor
 
     def query(
