@@ -4,7 +4,8 @@ from itertools import product
 from collections import namedtuple
 from warnings import warn
 import copy
-from numba import jit
+import numba
+from numba import cuda, jit
 import numpy as np
 
 from Pgmpy.factors.base import BaseFactor
@@ -255,7 +256,8 @@ class DiscreteFactor(BaseFactor, StateNameMixin):
 
         if not inplace:
             return phi
-
+    
+    #@jit
     def normalize(self, inplace=True):
         """
         Normalizes the values of factor so that they sum to 1.
@@ -278,7 +280,7 @@ class DiscreteFactor(BaseFactor, StateNameMixin):
         if not inplace:
             return phi
 
-    @jit
+    #@jit
     def reduce(self, values, inplace=True):
         """
         Reduces the factor to the context of given variable values.
@@ -355,7 +357,7 @@ class DiscreteFactor(BaseFactor, StateNameMixin):
         if not inplace:
             return phi
 
-    @jit
+    #@jit
     def sum(self, phi1, inplace=True):
         """
         DiscreteFactor sum with `phi1`.
@@ -418,7 +420,7 @@ class DiscreteFactor(BaseFactor, StateNameMixin):
         if not inplace:
             return phi
 
-    @jit
+    #@jit
     def product(self, phi1, inplace=True):
         """
         DiscreteFactor product with `phi1`.
@@ -482,7 +484,7 @@ class DiscreteFactor(BaseFactor, StateNameMixin):
         if not inplace:
             return phi
 
-    @jit
+    #@jit
     def divide(self, phi1, inplace=True):
         """
         DiscreteFactor division by `phi1`.

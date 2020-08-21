@@ -16,7 +16,7 @@ def build_meta_info(column_names):
     for col in column_names:
         if col is not None and 'mul_' in col:
             fanout_attr.append(col)
-            if '_nn' in column_names[col]:
+            if '_nn' in col:
                 fanout_attr_inverse.append(col)
             else:
                 fanout_attr_positive.append(col)
@@ -30,11 +30,12 @@ class Pgmpy_BN(BN_Single):
     Build a single Bayesian Network for a single table using pgmpy
     """
 
-    def __init__(self, table_name, meta_info, method='Pome', debug=True, infer_algo=None):
+    def __init__(self, table_name, meta_info, nrows=None, method='Pome', debug=True, infer_algo=None):
         """
         infer_algo: inference method, choose between 'exact', 'BP'
         """
         BN_Single.__init__(self, table_name, meta_info, method, debug)
+        self.nrows = nrows
         self.infer_algo = infer_algo
     
     def realign(self, encode_value, n_distinct):
@@ -70,12 +71,12 @@ class Pgmpy_BN(BN_Single):
         """
         self.algorithm = algorithm
         if algorithm != "junction":
-            discrete_table = self.learn_model_structure(dataset, attr_type, sample_size,
+            discrete_table = self.learn_model_structure(dataset, self.nrows, attr_type, sample_size,
                                                         n_mcv, n_bins, ignore_cols, algorithm,
                                                         drop_na, max_parents, root, n_jobs, 
                                                         return_dataset=True, discretized=discretized)
         else:
-            discrete_table = self.learn_model_structure(dataset, attr_type, sample_size,
+            discrete_table = self.learn_model_structure(dataset, self.nrows, attr_type, sample_size,
                                                         n_mcv, n_bins, ignore_cols, 'chow-liu',
                                                         drop_na, max_parents, root, n_jobs, 
                                                         return_dataset=True, discretized=discretized)
@@ -265,7 +266,7 @@ class Pgmpy_BN(BN_Single):
             fanout_attrs_val = [list(self.fanouts[i]) for i in fanout_attrs]
             return np.asarray(list(itertools.product(*fanout_attrs_val)))
 
-    def query(self, query, num_samples=1, coverage=None, return_prob=False, sample_size=10000):
+    def query_inefficient(self, query, num_samples=1, coverage=None, return_prob=False, sample_size=10000):
         """Probability inference using Loopy belief propagation. For example estimate P(X=x, Y=y, Z=z)
            ::Param:: query: dictionary of the form {X:x, Y:y, Z:z}
                      x,y,z can only be a single value
@@ -284,13 +285,14 @@ class Pgmpy_BN(BN_Single):
 
         nrows = self.nrows
         query, n_distinct = self.query_decoding(query, coverage)
+        print(f"decoded query is {query}")
         if query is None:
             if return_prob:
                 return 0, nrows
             else:
                 return 0
-
         if self.infer_algo == "exact" or num_samples == 1:
+            """
             # Using topological order to infer probability
             sampling_order = []
             while len(sampling_order) < len(self.structure):
@@ -300,16 +302,19 @@ class Pgmpy_BN(BN_Single):
                     if all(d in sampling_order for d in deps):
                         sampling_order.append(i)
             sampling_order = [self.node_names[i] for i in sampling_order]
-
+            """
+            sampling_order = list(query.keys())
             p_estimate = 1
             for attr in sampling_order:
                 if attr in query:
                     val = query.pop(attr)
-                    probs = self.infer_machine.query([attr], evidence=query).values
+                    probs = self.infer_machine.conditional_query([attr], evidence=query).values
                     if any(np.isnan(probs)):
                         p_estimate = 0
                         break
                     p = np.sum(probs[val] / (np.sum(probs)) * n_distinct[attr])
+                    print(f"querying {attr} with n_distinct {n_distinct[attr]}")
+                    print(f"conditioning on {list(query.keys())} with probability {p}")
                     p_estimate *= p
 
         else:

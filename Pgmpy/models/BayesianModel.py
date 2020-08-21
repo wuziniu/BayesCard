@@ -49,6 +49,7 @@ class BayesianModel(DAG):
             self.add_edges_from(ebunch)
         self.cpds = []
         self.cardinalities = self.get_cardinality()
+        self.probs = dict()
 
     def add_edge(self, u, v, **kwargs):
         """
