@@ -1,4 +1,4 @@
-### BayesCard
+# BayesCard
 
 ## Environment setup
   The following command should setup the environment in linux CentOS.
