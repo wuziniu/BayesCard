@@ -1,13 +1,13 @@
 # BayesCard
 
 ## Environment setup
-  The following command should setup the environment in linux CentOS.
+  The following command using conda should setup the environment in linux CentOS.
   ```
-  Conda: conda env create -f environment.yml
+  conda env create -f environment.yml
   ```
   If not, you need to manually download the following packages
   Required dependence: numpy, scipy, pandas, Pgmpy, pomegranate, networkx, tqdm, joblib, 
-  Additional dependence: numba, bz2, Pyro
+  Additional dependence: numba, bz2, Pyro (These packages are not required to reproduce the result in the paper.)
   
 ## Dataset download:
 1. DMV dataset:
