@@ -1,4 +1,5 @@
 import time
+import numpy as np
 import bz2
 import pickle
 import logging

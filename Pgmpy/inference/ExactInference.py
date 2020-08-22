@@ -19,9 +19,15 @@ from Pgmpy.factors.discrete import TabularCPD
 
 
 class VariableElimination(object):
-    def __init__(self, model):
-        self.model = model
+    def __init__(self, model, probs=None):
         model.check_model()
+        self.model = model
+        if probs is not None:
+            self.probs = probs
+        elif len(self.model.probs) != 0:
+            self.probs = model.probs
+        else:
+            self.probs = dict()
 
         if isinstance(model, JunctionTree):
             self.variables = set(chain(*model.nodes()))
@@ -48,11 +54,11 @@ class VariableElimination(object):
             for factor in model.get_factors():
                 for var in factor.variables:
                     self.factors[var].append(factor)
-
-        self.root = self.get_root
+        self.root = self.get_root()
 
     def get_root(self):
         """Returns the network's root node."""
+
         def find_root(graph, node):
             predecessor = next(self.model.predecessors(node), None)
             if predecessor:
@@ -63,8 +69,38 @@ class VariableElimination(object):
 
         return find_root(self, list(self.model.nodes)[0])
 
+    def steiner_tree(self, nodes):
+        """Returns the minimal part of the tree that contains a set of nodes."""
+        sub_nodes = set()
 
-    def _get_working_factors(self, evidence):
+        def walk(node, path):
+            if len(nodes) == 0:
+                return
+
+            if node in nodes:
+                sub_nodes.update(path + [node])
+                nodes.remove(node)
+
+            for child in self.model.successors(node):
+                walk(child, path + [node])
+
+        walk(self.root, [])
+        sub_graph = self.model.subgraph(sub_nodes)
+        sub_graph.cardinalities = defaultdict(int)
+        for node in sub_graph.nodes:
+            sub_graph.cardinalities[node] = self.model.cardinalities[node]
+        return sub_graph
+
+    def get_probs(self, attribute, values):
+        """
+        Calculate Pr(attr in values) where values must be a list
+        """
+        factor = self.probs[attribute]
+        values = [factor.get_state_no(attribute, no) for no in values]
+        return np.sum(factor.values[values])
+
+
+    def _get_working_factors(self, variables=[], evidence=None, return_probs=False, reduce=True):
         """
         Uses the evidence given to the query methods to modify the factors before running
         the variable elimination algorithm.
@@ -77,27 +113,43 @@ class VariableElimination(object):
         dict: Modified working factors.
         """
 
-        working_factors = {
-            node: {(factor, None) for factor in self.factors[node]}
-            for node in self.factors
-        }
-
-        # Dealing with evidence. Reducing factors over it before VE is run.
+        useful_var = copy.deepcopy(variables)
         if evidence:
+            useful_var += list(evidence.keys())
+        sub_graph_model = self.steiner_tree(useful_var)
+        variables_sub_graph = set(sub_graph_model.nodes)
+
+        working_factors = dict()
+        for node in sub_graph_model.nodes:
+            working_factors[node] = set()
+            for factor in self.factors[node]:
+                if set(factor.variables).issubset(variables_sub_graph):
+                    working_factors[node].add((factor, None))
+
+        if return_probs:
+            probs = dict()
+        # Dealing with evidence. Reducing factors over it before VE is run.
+        if evidence and reduce:
             for evidence_var in evidence:
                 for factor, origin in working_factors[evidence_var]:
                     factor_reduced = factor.reduce(
                         [(evidence_var, evidence[evidence_var])], inplace=False
                     )
+                    if return_probs:
+                        factor_reduced.normalize()
+                        probs[evidence_var] = self.get_probs(evidence_var, evidence[evidence_var])
                     for var in factor_reduced.scope():
-                        working_factors[var].remove((factor, origin))
-                        working_factors[var].add((factor_reduced, evidence_var))
+                        if var in working_factors:
+                            working_factors[var].remove((factor, origin))
+                            working_factors[var].add((factor_reduced, evidence_var))
                 if type(evidence[evidence_var]) != list:
                     del working_factors[evidence_var]
-        return working_factors
+        if return_probs:
+            return working_factors, sub_graph_model, probs
+        return working_factors, sub_graph_model
 
     def _get_elimination_order(
-            self, variables, evidence, elimination_order="minfill", show_progress=False
+            self, variables=None, evidence=None, model=None, elimination_order="minfill", show_progress=False
     ):
         """
         Deals with all elimination order parameters given to _variable_elimination method
@@ -109,16 +161,26 @@ class VariableElimination(object):
         -------
         list: A list of variables names in the order they need to be eliminated.
         """
-        not_evidence_eliminate = []
-        if evidence is not None:
-            for key in evidence:
-                if type(evidence[key]) != list:
-                    not_evidence_eliminate.append(key)
-        to_eliminate = (
-                set(self.variables)
-                - set(variables)
-                - set(not_evidence_eliminate)
-        )
+        if model is None:
+            model = self.model
+        if isinstance(model, JunctionTree):
+            all_variables = set(chain(*model.nodes()))
+        else:
+            all_variables = model.nodes()
+
+        if variables is None:
+            to_eliminate = set(all_variables)
+        else:
+            not_evidence_eliminate = []
+            if evidence is not None:
+                for key in evidence:
+                    if type(evidence[key]) != list:
+                        not_evidence_eliminate.append(key)
+            to_eliminate = (
+                    set(all_variables)
+                    - set(variables)
+                    - set(not_evidence_eliminate)
+            )
 
         # Step 1: If elimination_order is a list, verify it's correct and return.
         if hasattr(elimination_order, "__iter__") and (
@@ -138,12 +200,12 @@ class VariableElimination(object):
                 return elimination_order
 
         # Step 2: If elimination order is None or a Markov model, return a random order.
-        elif (elimination_order is None) or (not isinstance(self.model, BayesianModel)):
+        elif (elimination_order is None) or (not isinstance(model, BayesianModel)):
             return to_eliminate
 
         # Step 3: If elimination order is a str, compute the order using the specified heuristic.
         elif isinstance(elimination_order, str) and isinstance(
-                self.model, BayesianModel
+                model, BayesianModel
         ):
             heuristic_dict = {
                 "weightedminfill": WeightedMinFill,
@@ -152,7 +214,7 @@ class VariableElimination(object):
                 "minfill": MinFill,
             }
             elimination_order = heuristic_dict[elimination_order.lower()](
-                self.model
+                model
             ).get_elimination_order(nodes=to_eliminate, show_progress=show_progress)
             return elimination_order
 
@@ -161,7 +223,7 @@ class VariableElimination(object):
             variables,
             operation,
             evidence=None,
-            elimination_order="weightedminfill",
+            elimination_order="minfill",
             joint=True,
             show_progress=False,
     ):
@@ -204,14 +266,14 @@ class VariableElimination(object):
         # Step 2: Prepare data structures to run the algorithm.
         eliminated_variables = set()
         # Get working factors and elimination order
-        tic = time.time()
-        working_factors = self._get_working_factors(evidence)
-        toc = time.time()
-        print(f"getting working factors takes {toc - tic} secs")
+        # tic = time.time()
+        working_factors, sub_graph_model = self._get_working_factors(variables, evidence)
+        # toc = time.time()
+        # print(f"getting working factors takes {toc-tic} secs")
         elimination_order = self._get_elimination_order(
-            variables, evidence, elimination_order, show_progress=show_progress
+            variables, evidence, sub_graph_model, elimination_order, show_progress=show_progress
         )
-        print(f"getting elimination orders takes {time.time() - toc} secs")
+        # print(f"getting elimination orders takes {time.time()-toc} secs")
         # Step 3: Run variable elimination
         if show_progress:
             pbar = tqdm(elimination_order)
@@ -219,8 +281,8 @@ class VariableElimination(object):
             pbar = elimination_order
 
         for var in pbar:
-            tic = time.time()
-            print(var)
+            #tic = time.time()
+            # print(var)
             if show_progress:
                 pbar.set_description("Eliminating: {var}".format(var=var))
             # Removing all the factors containing the variables which are
@@ -234,20 +296,21 @@ class VariableElimination(object):
             phi = getattr(phi, operation)([var], inplace=False)
             del working_factors[var]
             for variable in phi.variables:
-                working_factors[variable].add((phi, var))
+                if variable in working_factors:
+                    working_factors[variable].add((phi, var))
             eliminated_variables.add(var)
-            print(f"eliminating {var} takes {time.time() - tic} secs")
+            # print(f"eliminating {var} takes {time.time()-tic} secs")
 
         # Step 4: Prepare variables to be returned.
-        tic = time.time()
+        #tic = time.time()
         final_distribution = set()
         for node in working_factors:
             for factor, origin in working_factors[node]:
                 if not set(factor.variables).intersection(eliminated_variables):
                     final_distribution.add((factor, origin))
         final_distribution = [factor for factor, _ in final_distribution]
-        print(final_distribution)
-        print(f"the rest takes {time.time() - tic} secs")
+        # print(final_distribution)
+        # print(f"the rest takes {time.time()-tic} secs")
         if joint:
             if isinstance(self.model, BayesianModel):
                 return factor_product(*final_distribution).normalize(inplace=False)
@@ -260,14 +323,13 @@ class VariableElimination(object):
                 query_var_factor[query_var] = phi.marginalize(
                     list(set(variables) - set([query_var])), inplace=False
                 ).normalize(inplace=False)
-            print(f"the rest takes {time.time() - tic} secs")
             return query_var_factor
 
-    def query(
+    def conditional_query(
             self,
             variables,
             evidence=None,
-            elimination_order="MinFill",
+            elimination_order="weightedminfill",
             joint=True,
             show_progress=False,
     ):
@@ -305,6 +367,96 @@ class VariableElimination(object):
             joint=joint,
             show_progress=show_progress,
         )
+
+
+    def query(
+            self,
+            query,
+            elimination_order="minfill",
+            show_progress=False,
+    ):
+        """
+        An efficient implementation of probabilistic query
+
+        Parameters
+        ----------
+        query: Q of form {"attr_name": attr_values}
+               attr_values must be a list of values.
+        elimination_order: str or list (array-like)
+            If str: Heuristic to use to find the elimination order.
+            If array-like: The elimination order to use.
+            If None: A random elimination order is used.
+        """
+
+        # Step 1: Prepare data structures to run the algorithm.
+        eliminated_variables = set()
+        # Get working factors and elimination order
+        # tic = time.time()
+        working_factors, sub_graph_model = self._get_working_factors(evidence=query, reduce=False)
+        # toc = time.time()
+        # print(f"getting working factors takes {toc-tic} secs")
+
+        elimination_order_rest = self._get_elimination_order(variables=list(query.keys()),
+                                                        model=sub_graph_model,
+                                                        elimination_order=elimination_order,
+                                                        show_progress=show_progress)
+
+        elimination_order_variable = self._get_elimination_order(variables=list(elimination_order_rest),
+                                                             model=sub_graph_model,
+                                                             elimination_order=elimination_order,
+                                                             show_progress=show_progress)
+
+        elimination_order = elimination_order_rest + elimination_order_variable
+        # print(f"getting elimination orders takes {time.time()-toc} secs")
+        # Step 3: Run variable elimination
+        if show_progress:
+            pbar = tqdm(elimination_order)
+        else:
+            pbar = elimination_order
+
+        result = None
+        for var in pbar:
+            #tic = time.time()
+            # print(var)
+            if show_progress:
+                pbar.set_description("Eliminating: {var}".format(var=var))
+            # Removing all the factors containing the variables which are
+            # eliminated (as all the factors should be considered only once)
+            factors = [
+                factor
+                for factor, _ in working_factors[var]
+                if not set(factor.variables).intersection(eliminated_variables)
+            ]
+            phi = factor_product(*factors)
+            #If its a query variable, we record its probability
+            if var in query:
+                if result is None:
+                    result = self.get_probs(var, query[var])
+                else:
+                    marg_var = [attr for attr in list(phi.variables) if attr != var]
+                    phi_var = phi.marginalize(marg_var, inplace=False)
+                    phi_var.normalize()
+                    values = [phi_var.get_state_no(var, no) for no in query[var]]
+                    result *= np.sum(phi_var.values[values])
+                for factor, origin in working_factors[var]:
+                    factor_reduced = factor.reduce(
+                        [(var, query[var])], inplace=False
+                    )
+                    for fact_var in factor_reduced.scope():
+                        if fact_var in working_factors:
+                            working_factors[fact_var].remove((factor, origin))
+                            working_factors[fact_var].add((factor_reduced, var))
+            phi = phi.marginalize([var], inplace=False)
+            del working_factors[var]
+            for variable in phi.variables:
+                if variable in working_factors:
+                    working_factors[variable].add((phi, var))
+
+            eliminated_variables.add(var)
+            # print(f"eliminating {var} takes {time.time()-tic} secs")
+
+        return result
+
     
     def max_marginal(
         self,

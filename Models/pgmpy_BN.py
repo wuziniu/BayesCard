@@ -8,6 +8,7 @@ import itertools
 
 logger = logging.getLogger(__name__)
 
+
 def build_meta_info(column_names):
     meta_info = dict()
     fanout_attr = []
@@ -25,6 +26,7 @@ def build_meta_info(column_names):
     meta_info['fanout_attr_positive'] = fanout_attr_positive
     return meta_info
 
+
 class Pgmpy_BN(BN_Single):
     """
     Build a single Bayesian Network for a single table using pgmpy
@@ -37,13 +39,13 @@ class Pgmpy_BN(BN_Single):
         BN_Single.__init__(self, table_name, meta_info, method, debug)
         self.nrows = nrows
         self.infer_algo = infer_algo
-    
+
     def realign(self, encode_value, n_distinct):
         """Discard the invalid and duplicated values in encode_value and n_distinct and realign the two
         """
         if type(encode_value) != list and type(n_distinct) != list:
             return encode_value, n_distinct
-        
+
         assert len(encode_value) == len(n_distinct)
         res_value = []
         res_n_distinct = []
@@ -73,12 +75,12 @@ class Pgmpy_BN(BN_Single):
         if algorithm != "junction":
             discrete_table = self.learn_model_structure(dataset, self.nrows, attr_type, sample_size,
                                                         n_mcv, n_bins, ignore_cols, algorithm,
-                                                        drop_na, max_parents, root, n_jobs, 
+                                                        drop_na, max_parents, root, n_jobs,
                                                         return_dataset=True, discretized=discretized)
         else:
             discrete_table = self.learn_model_structure(dataset, self.nrows, attr_type, sample_size,
                                                         n_mcv, n_bins, ignore_cols, 'chow-liu',
-                                                        drop_na, max_parents, root, n_jobs, 
+                                                        drop_na, max_parents, root, n_jobs,
                                                         return_dataset=True, discretized=discretized)
         spec = []
         orphans = []
@@ -230,10 +232,10 @@ class Pgmpy_BN(BN_Single):
                 query_str += (attr + " == " + str(query[attr][0]))
             else:
                 query_str += (attr + " in " + str(query[attr]))
-            if n != len(query)-1:
+            if n != len(query) - 1:
                 query_str += " and "
         card = len(gen.query(query_str))
-        return card/sample_size
+        return card / sample_size
 
     def query_decoding(self, query, coverage=None):
         """
@@ -370,6 +372,3 @@ class Pgmpy_BN(BN_Single):
                 return exp, self.nrows
             else:
                 return exp * self.nrows
-
-
-

@@ -3,9 +3,8 @@ from __future__ import division
 from itertools import product
 from collections import namedtuple
 from warnings import warn
-import copy
 import numba
-from numba import cuda, jit
+#from numba import jit    #If your model is really large, use numba, otherwise don't use it
 import numpy as np
 
 from Pgmpy.factors.base import BaseFactor
@@ -309,9 +308,9 @@ class DiscreteFactor(BaseFactor, StateNameMixin):
             )
 
         # Check if all variables in values are in the factor
-        #for var, _ in values:
-         #   if var not in self.variables:
-          #      raise ValueError(f"The variable: {var} is not in the factor")
+        for var, _ in values:
+            if var not in self.variables:
+                raise ValueError(f"The variable: {var} is not in the factor")
 
         phi = self if inplace else self.copy()
 
