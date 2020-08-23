@@ -26,12 +26,14 @@
   ```
   python run_experiment.py --dataset dmv
          --generate_models
+         --csv_path .../DMV/DMV.csv
          --model_path ../Benchmark/DMV
          --learning_algo chow-liu
          --max_parents 1
          --sample_size 200000
   ```
   model_path specifies the location to save the model
+  csv_path points the dataset you just downloaded
   algo: one can choose between chow-liu, greedy, exact, junction. Expect for chow-liu, other methods contain a large amount of randomness, so not garuantee to 
   reproduce the exactly same result as paper.
   
@@ -50,6 +52,7 @@
   ```
   python run_experiment.py --dataset census
          --generate_models
+         --csv_path .../Census/Census.csv
          --model_path ../Benchmark/Census
          --learning_algo chow-liu
          --max_parents 1
