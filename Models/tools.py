@@ -87,7 +87,7 @@ def discretize_series(series: pd.Series, n_mcv, n_bins, is_continous=False, cont
     
     # Remove trailing whitespace
     if s.dtype == 'object':
-        s = s.str.rstrip()
+        s = s.str.strip()
     domains = list(s.unique())
     fanout_values = []
     # Treat most common values
@@ -118,8 +118,7 @@ def discretize_series(series: pd.Series, n_mcv, n_bins, is_continous=False, cont
     #map the original value to encoded value
     temp = series.copy()
     for i in s.unique():
-        if not math.isnan(i):
-            temp[s == i] = encoding[i]
+        temp[s == i] = encoding[i]
     del s
     
     if drop_na:

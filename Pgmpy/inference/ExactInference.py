@@ -17,7 +17,6 @@ from Pgmpy.inference.EliminationOrder import (
 )
 from Pgmpy.factors.discrete import TabularCPD
 
-
 class VariableElimination(object):
     def __init__(self, model, probs=None):
         model.check_model()
@@ -325,7 +324,7 @@ class VariableElimination(object):
                 ).normalize(inplace=False)
             return query_var_factor
 
-    def conditional_query(
+    def query(
             self,
             variables,
             evidence=None,
@@ -369,7 +368,7 @@ class VariableElimination(object):
         )
 
 
-    def query(
+    def probabilistic_query(
             self,
             query,
             elimination_order="minfill",
@@ -377,7 +376,7 @@ class VariableElimination(object):
     ):
         """
         An efficient implementation of probabilistic query
-
+        But in practice is not as efficient as the previous one, I'm so currently working it.
         Parameters
         ----------
         query: Q of form {"attr_name": attr_values}
@@ -457,7 +456,7 @@ class VariableElimination(object):
 
         return result
 
-    
+
     def max_marginal(
         self,
         variables=None,

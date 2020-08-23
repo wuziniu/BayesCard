@@ -15,11 +15,16 @@ class BN_Single():
     Initialize with an appropriate table_name.
     """
 
-    def __init__(self, table_name, meta_info, method='Pome', debug=True):
+    def __init__(self, table_name, meta_info=None, method='Pome', debug=True):
         self.table_name = table_name
-        self.fanout_attr = meta_info['fanout_attr']
-        self.fanout_attr_inverse = meta_info['fanout_attr_inverse']
-        self.fanout_attr_positive = meta_info['fanout_attr_positive']
+        if meta_info is None:
+            self.fanout_attr = []
+            self.fanout_attr_inverse = []
+            self.fanout_attr_positive = []
+        else:
+            self.fanout_attr = meta_info['fanout_attr']
+            self.fanout_attr_inverse = meta_info['fanout_attr_inverse']
+            self.fanout_attr_positive = meta_info['fanout_attr_positive']
         self.n_in_bin = dict()
         self.encoding = dict()
         self.mapping = dict()

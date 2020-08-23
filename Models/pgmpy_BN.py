@@ -32,13 +32,14 @@ class Pgmpy_BN(BN_Single):
     Build a single Bayesian Network for a single table using pgmpy
     """
 
-    def __init__(self, table_name, meta_info, nrows=None, method='Pome', debug=True, infer_algo=None):
+    def __init__(self, table_name, meta_info=None, nrows=None, method='Pome', debug=True, infer_algo=None):
         """
         infer_algo: inference method, choose between 'exact', 'BP'
         """
         BN_Single.__init__(self, table_name, meta_info, method, debug)
         self.nrows = nrows
         self.infer_algo = infer_algo
+        self.infer_machine = None
 
     def realign(self, encode_value, n_distinct):
         """Discard the invalid and duplicated values in encode_value and n_distinct and realign the two
@@ -106,7 +107,7 @@ class Pgmpy_BN(BN_Single):
                     "This BN is not able to transform into junction tree, probably because it's not connected, just use BN")
         logger.info(f"done, took {time.time() - t} secs.")
         print(f"done, parameter learning took {time.time() - t} secs.")
-        self.init_inference_method()
+        #self.init_inference_method()
 
     def init_inference_method(self):
         """
@@ -268,7 +269,7 @@ class Pgmpy_BN(BN_Single):
             fanout_attrs_val = [list(self.fanouts[i]) for i in fanout_attrs]
             return np.asarray(list(itertools.product(*fanout_attrs_val)))
 
-    def query_inefficient(self, query, num_samples=1, coverage=None, return_prob=False, sample_size=10000):
+    def query(self, query, num_samples=1, coverage=None, return_prob=False, sample_size=10000):
         """Probability inference using Loopy belief propagation. For example estimate P(X=x, Y=y, Z=z)
            ::Param:: query: dictionary of the form {X:x, Y:y, Z:z}
                      x,y,z can only be a single value
@@ -287,7 +288,7 @@ class Pgmpy_BN(BN_Single):
 
         nrows = self.nrows
         query, n_distinct = self.query_decoding(query, coverage)
-        print(f"decoded query is {query}")
+        #print(f"decoded query is {query}")
         if query is None:
             if return_prob:
                 return 0, nrows
@@ -310,13 +311,17 @@ class Pgmpy_BN(BN_Single):
             for attr in sampling_order:
                 if attr in query:
                     val = query.pop(attr)
-                    probs = self.infer_machine.conditional_query([attr], evidence=query).values
+                    probs = self.infer_machine.query([attr], evidence=query).values
+                    print(f"attr: {attr}")
+                    print(f"evidence: {query}")
+                    print(f"factors: {probs}")
+                    print(f"n_distinct: n_distinct[attr]")
+                    print(val)
+                    
                     if any(np.isnan(probs)):
                         p_estimate = 0
                         break
-                    p = np.sum(probs[val] / (np.sum(probs)) * n_distinct[attr])
-                    print(f"querying {attr} with n_distinct {n_distinct[attr]}")
-                    print(f"conditioning on {list(query.keys())} with probability {p}")
+                    p = np.sum(probs[val] * n_distinct[attr])
                     p_estimate *= p
 
         else:

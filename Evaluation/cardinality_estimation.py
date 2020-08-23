@@ -28,7 +28,10 @@ def str_pattern_matching(s):
         try:
             value = list(ast.literal_eval(s[1].strip()))
         except:
-            value = s[1].strip()[1:][:-1].split(',')
+            temp_value = s[1].strip()[1:][:-1].split(',')
+            value = []
+            for v in temp_value:
+                value.append(v.strip())
         return attr, 'in', value
 
     for i in range(len(s)):
@@ -40,7 +43,7 @@ def str_pattern_matching(s):
                 op_end = i
             break
     attr = s[:op_start]
-    value = s[(op_end + 1):]
+    value = s[(op_end + 1):].strip()
     ops = s[op_start:(op_end + 1)]
     try:
         value = list(ast.literal_eval(s[1].strip()))

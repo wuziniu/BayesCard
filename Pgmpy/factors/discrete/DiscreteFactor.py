@@ -83,7 +83,7 @@ class DiscreteFactor(BaseFactor, StateNameMixin):
         self.variables = list(variables)
         self.cardinality = np.array(cardinality, dtype=int)
         self.values = values.reshape(self.cardinality)
-
+        
         # Set the state names
         super(DiscreteFactor, self).store_state_names(
             variables, cardinality, state_names
@@ -299,6 +299,8 @@ class DiscreteFactor(BaseFactor, StateNameMixin):
                         if inplace=False returns a new `DiscreteFactor` instance.
         """
         # Check if values is an array
+        print("-------------------------------------------")
+        print(values)
         if isinstance(values, str):
             raise TypeError("values: Expected type list or array-like, got type str")
 
@@ -313,15 +315,15 @@ class DiscreteFactor(BaseFactor, StateNameMixin):
                 raise ValueError(f"The variable: {var} is not in the factor")
 
         phi = self if inplace else self.copy()
-
         # Convert the state names to state number. If state name not found treat them as
         # state numbers.
+        new_state_names = dict()
         for i, (var, state_name) in enumerate(values):
             if type(state_name) == list:
+                new_state_names[var] = state_name
                 values[i] = (var, [self.get_state_no(var, no) for no in state_name])
             else:
                 values[i] = (var, self.get_state_no(var, state_name))
-
         var_index_to_del = []
         slice_ = [slice(None)] * len(self.variables)
         point_query = True
@@ -334,11 +336,10 @@ class DiscreteFactor(BaseFactor, StateNameMixin):
             if type(state) == list:
                 point_query = False
                 cardinality[var_index] = len(state)
-                state_names[var] = state
+                state_names[var] = new_state_names[var]
             else:
                 var_index_to_del.append(var_index)
                 del_state_names.append(var)
-
         var_index_to_keep = sorted(
             set(range(len(phi.variables))) - set(var_index_to_del)
         )
@@ -347,12 +348,14 @@ class DiscreteFactor(BaseFactor, StateNameMixin):
         phi.cardinality = cardinality[var_index_to_keep]
         phi.del_state_names(del_state_names)
         phi.values = phi.values[tuple(slice_)]
-
+        print(f"variables {phi.variables}")
+        print(f"state_names {state_names}")
+        print("------------------------------------------------")
         if not point_query:
             super(DiscreteFactor, phi).store_state_names(
                 phi.variables, cardinality, state_names
             )
-
+        
         if not inplace:
             return phi
 
