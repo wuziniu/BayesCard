@@ -27,7 +27,7 @@
   python run_experiment.py --dataset dmv
          --generate_models
          --model_path ../Benchmark/DMV
-         --algo chow-liu
+         --learning_algo chow-liu
          --max_parents 1
          --sample_size 200000
   ```
@@ -41,4 +41,25 @@
          --evaluate_cardinalities
          --model_location ../Benchmark/DMV/chow-liu_1.pkl
          --query_file_location ../Benchmark/DMV/query.sql
+         --infer_algo exact
+  ```
+  infer_algo: one can choose between exact, BP and sampling. I'm current working on BP's optimization, so please run exact.
+  
+## Reproducing Census result:
+  Similar to DMV, first train the model
+  ```
+  python run_experiment.py --dataset census
+         --generate_models
+         --model_path ../Benchmark/Census
+         --learning_algo chow-liu
+         --max_parents 1
+         --sample_size 200000
+  ```
+  Then, evaluate the learnt model
+  ```
+  python run_experiment.py --dataset census
+         --evaluate_cardinalities
+         --model_location ../Benchmark/Census/chow-liu_1.pkl
+         --query_file_location ../Benchmark/Census/query.sql
+         --infer_algo exact
   ```
