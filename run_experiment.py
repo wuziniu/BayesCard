@@ -30,7 +30,7 @@ if __name__ == '__main__':
     # generate models/ensembles
     parser.add_argument('--generate_models', help='Trains BNs on dataset', action='store_true')
     parser.add_argument('--model_path', default='../imdb-benchmark/bn_ensembles')
-    parser.add_argument('--algo', default='chow-liu', help="BN's structure learning algorithm")
+    parser.add_argument('--learning_algo', default='chow-liu', help="BN's structure learning algorithm")
     parser.add_argument('--max_parents', type=int, default=1, help="BN's constrain on max number of parents")
     parser.add_argument('--sample_size', type=int, default=200000, help="use a subsample for structure learning")
     parser.add_argument('--n_mcv', type=int, default=30, help="Related to binning large or continuous domain")
@@ -40,6 +40,7 @@ if __name__ == '__main__':
     parser.add_argument('--evaluate_cardinalities', help='Evaluates SPN ensemble to compute cardinalities',
                         action='store_true')
     parser.add_argument('--model_location', nargs='+', default='../imdb-benchmark/bn_ensembles/clt.pkl')
+    parser.add_argument('--infer_algo', default='exact', help="BN's structure learning algorithm")
     parser.add_argument('--query_file_location', default='./benchmarks/dmv/sql/cardinality_queries.sql')
     parser.add_argument('--ground_truth_file_location', default=None)
 
@@ -92,7 +93,7 @@ if __name__ == '__main__':
         elif args.generate_models:
             if not os.path.exists(args.model_path):
                 os.makedirs(args.model_path)
-            train_imdb(schema, args.hdf_path, )
+            train_imdb(schema, args.hdf_path, args.model_path, args.learning_algo, args.max_parents, args.sample_size)
 
         elif args.evaluate_cardinalities:
             pass
@@ -101,8 +102,17 @@ if __name__ == '__main__':
         if args.generate_models:
             if not os.path.exists(args.model_path):
                 os.makedirs(args.model_path)
-            train_DMV(args.csv_path, args.model_path, args.algo, args.max_parents, args.sample_size)
+            train_DMV(args.csv_path, args.model_path, args.learning_algo, args.max_parents, args.sample_size)
 
         elif args.evaluate_cardinalities:
-            evaluate_cardinality_single_table(args.model_path, args.query_file_location)
+            evaluate_cardinality_single_table(args.model_path, args.query_file_location, args.infer_algo)
+
+    elif args.dataset == 'census':
+        if args.generate_models:
+            if not os.path.exists(args.model_path):
+                os.makedirs(args.model_path)
+            train_Census(args.csv_path, args.model_path, args.learning_algo, args.max_parents, args.sample_size)
+
+        elif args.evaluate_cardinalities:
+            evaluate_cardinality_single_table(args.model_path, args.query_file_location, args.infer_algo)
 

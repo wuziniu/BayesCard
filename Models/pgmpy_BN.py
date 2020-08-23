@@ -9,18 +9,20 @@ import itertools
 logger = logging.getLogger(__name__)
 
 
-def build_meta_info(column_names):
+def build_meta_info(column_names, null_values):
     meta_info = dict()
     fanout_attr = []
     fanout_attr_inverse = []
     fanout_attr_positive = []
-    for col in column_names:
+    meta_info['null_values'] = dict()
+    for i, col in enumerate(column_names):
         if col is not None and 'mul_' in col:
             fanout_attr.append(col)
             if '_nn' in col:
                 fanout_attr_inverse.append(col)
             else:
                 fanout_attr_positive.append(col)
+        meta_info['null_values'][col] = null_values[i]
     meta_info['fanout_attr'] = fanout_attr
     meta_info['fanout_attr_inverse'] = fanout_attr_inverse
     meta_info['fanout_attr_positive'] = fanout_attr_positive
@@ -42,7 +44,8 @@ class Pgmpy_BN(BN_Single):
         self.infer_machine = None
 
     def realign(self, encode_value, n_distinct):
-        """Discard the invalid and duplicated values in encode_value and n_distinct and realign the two
+        """
+        Discard the invalid and duplicated values in encode_value and n_distinct and realign the two
         """
         if type(encode_value) != list and type(n_distinct) != list:
             return encode_value, n_distinct
@@ -238,7 +241,7 @@ class Pgmpy_BN(BN_Single):
         card = len(gen.query(query_str))
         return card / sample_size
 
-    def query_decoding(self, query, coverage=None):
+    def query_decoding(self, query, coverage=None, epsilon=0.5):
         """
         Convert the query to the encodings BN recognize
         """
@@ -246,14 +249,29 @@ class Pgmpy_BN(BN_Single):
         for attr in query:
             if self.attr_type[attr] == 'continuous':
                 if coverage is None:
-                    l = max(self.domain[attr][0], query[attr][0])
-                    r = min(self.domain[attr][1], query[attr][1])
+                    if type(query[attr]) == tuple:
+                        l = max(self.domain[attr][0], query[attr][0])
+                        r = min(self.domain[attr][1], query[attr][1])
+                    else:
+                        l = query[attr][0]-epsilon
+                        r = query[attr][0]+epsilon
                     if l > r:
                         return None, None
                     query[attr], n_distinct[attr] = self.continuous_range_map(attr, (l, r))
 
                 else:
                     n_distinct[attr] = coverage[attr]
+            elif type(query[attr]) == tuple:
+                query_list = []
+                for val in self.encoding[attr]:
+                    if val not in self.null_values[attr]:
+                        if query[attr][0] <= val <= query[attr][1]:
+                            query_list.append(val)
+                encode_value = self.apply_encoding_to_value(query_list, attr)
+                if encode_value is None or (encode_value == []):
+                    return None, None
+                n_distinct[attr] = self.apply_ndistinct_to_value(encode_value, query_list, attr)
+                query[attr], n_distinct[attr] = self.realign(encode_value, n_distinct[attr])
             else:
                 encode_value = self.apply_encoding_to_value(query[attr], attr)
                 if encode_value is None or (encode_value == []):
@@ -269,7 +287,7 @@ class Pgmpy_BN(BN_Single):
             fanout_attrs_val = [list(self.fanouts[i]) for i in fanout_attrs]
             return np.asarray(list(itertools.product(*fanout_attrs_val)))
 
-    def query(self, query, num_samples=1, coverage=None, return_prob=False, sample_size=10000):
+    def query(self, query, num_samples=1, n_distinct=None, coverage=None, return_prob=False, sample_size=10000):
         """Probability inference using Loopy belief propagation. For example estimate P(X=x, Y=y, Z=z)
            ::Param:: query: dictionary of the form {X:x, Y:y, Z:z}
                      x,y,z can only be a single value
@@ -287,7 +305,8 @@ class Pgmpy_BN(BN_Single):
             return p_estimate * self.nrows
 
         nrows = self.nrows
-        query, n_distinct = self.query_decoding(query, coverage)
+        if n_distinct is None:
+            query, n_distinct = self.query_decoding(query, coverage)
         #print(f"decoded query is {query}")
         if query is None:
             if return_prob:
@@ -334,7 +353,8 @@ class Pgmpy_BN(BN_Single):
             return (p_estimate, nrows)
         return round(p_estimate * nrows)
 
-    def expectation(self, query, fanout_attrs, num_samples=1, coverage=None, return_prob=False, sample_size=10000):
+    def expectation(self, query, fanout_attrs, num_samples=1, n_distinct=None, coverage=None,
+                    return_prob=False, sample_size=10000):
         """
         Calculating the expected value E[P(Q|F)*F]
         Parameters
@@ -343,10 +363,10 @@ class Pgmpy_BN(BN_Single):
         Rest parameters: the same as previous function .query().
         """
         if fanout_attrs is None or len(fanout_attrs) == 0:
-            return self.query(query, num_samples, coverage, return_prob, sample_size)
+            return self.query(query, num_samples, n_distinct, coverage, return_prob, sample_size)
         else:
             query_prob = copy.deepcopy(query)
-            probsQ, _ = self.query(query_prob, num_samples, coverage, True)
+            probsQ, _ = self.query(query_prob, num_samples, n_distinct, coverage, True)
             if probsQ == 0:
                 if return_prob:
                     return 0, self.nrows
@@ -354,7 +374,8 @@ class Pgmpy_BN(BN_Single):
                     return 0
             print(f"probsQ {probsQ}")
 
-            query, n_distinct = self.query_decoding(query, coverage)
+            if n_distinct is None:
+                query, n_distinct = self.query_decoding(query, coverage)
             if query is None:
                 if return_prob:
                     return 0, self.nrows

@@ -21,10 +21,12 @@ class BN_Single():
             self.fanout_attr = []
             self.fanout_attr_inverse = []
             self.fanout_attr_positive = []
+            self.null_values = []
         else:
             self.fanout_attr = meta_info['fanout_attr']
             self.fanout_attr_inverse = meta_info['fanout_attr_inverse']
             self.fanout_attr_positive = meta_info['fanout_attr_positive']
+            self.null_values = meta_info['null_values']
         self.n_in_bin = dict()
         self.encoding = dict()
         self.mapping = dict()

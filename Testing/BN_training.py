@@ -32,7 +32,7 @@ def train_Census(csv_path, model_path, algorithm, max_parents, sample_size):
     print(f"model saved at {model_path}")
     return None
 
-def train_imdb(schema, hdf_path, model_path, algorithm, max_parents, sample_size):
+def train_imdb(schema, hdf_path, model_folder, algorithm, max_parents, sample_size):
     meta_data_path = hdf_path + '/meta_data.pkl'
     prep = JoinDataPreparator(meta_data_path, schema, max_table_data=20000000)
     print(f"BN will be trained on the full outer join of following relations")
@@ -45,12 +45,12 @@ def train_imdb(schema, hdf_path, model_path, algorithm, max_parents, sample_size
         relation = relationship_obj.identifier
         df, meta_types, null_values, full_join_est = prep.generate_n_samples(
             df_sample_size, relationship_list=[relation], post_sampling_factor=10)
-        meta_info = build_meta_info(df.columns)
+        meta_info = build_meta_info(df.columns, null_values)
         bn = Pgmpy_BN(relation, meta_info, full_join_est)
-        model_path += f"/{i}_{algorithm}_{max_parents}.pkl"
+        model_path = model_folder + f"/{i}_{algorithm}_{max_parents}.pkl"
         bn.build_from_data(df, algorithm=algorithm, max_parents=max_parents, ignore_cols=['id'],
                            sample_size=sample_size)
         pickle.dump(bn, open(model_path, 'wb'), pickle.HIGHEST_PROTOCOL)
         print(f"model saved at {model_path}")
-
+    return None
 

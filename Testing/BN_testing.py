@@ -4,11 +4,12 @@ from time import perf_counter
 import numpy as np
 import pickle
 
-def evaluate_cardinality_single_table(model_path, query_path):
+def evaluate_cardinality_single_table(model_path, query_path, infer_algo):
     # load BN
     with open(model_path, 'rb') as f:
         BN = pickle.load(f)
     if BN.infer_machine is None:
+        BN.infer_algo = infer_algo
         BN.init_inference_method()
     # read all queries
     with open(query_path) as f:
@@ -18,13 +19,13 @@ def evaluate_cardinality_single_table(model_path, query_path):
     for query_no, query_str in enumerate(queries):
         cardinality_true = int(query_str.split("||")[-1])
         query_str = query_str.split("||")[0]
-        print(f"Predicting cardinality for query {query_no}: {query_str}")
         try:
+            print(f"Predicting cardinality for query {query_no}: {query_str}")
             query = parse_query_single_table(query_str.strip(), BN)
             card_start_t = perf_counter()
             cardinality_predict = BN.query(query)
         except:
-            #In the case, that the query itself is invalid
+            #In the case, that the query itself is invalid or contains some values that are not recognizable by BN
             print("This query is not recognizable")
             continue
         card_end_t = perf_counter()

@@ -170,7 +170,7 @@ class BN_ensemble():
             return self.join_prepare._size_estimate(relationship_list=rel)[1]
 
     def naive_cardinality(self, query):
-        # estimate the cardinality of given query
+        # estimate the cardinality of given query using the join uniformity assumption
         select_tables = query.table_set
         conditions = query.table_where_condition_dict
         relations = query.relationship_set
@@ -188,4 +188,49 @@ class BN_ensemble():
                 p = self.bns[table_name].query(table_query, return_prob=True)
                 p_estimate *= p[0]
         return p_estimate * self.get_full_join_size(list(relations))
-    
+
+    def parse_query_all(self, table_queries):
+        res_table_queries = []
+        for table_query in table_queries:
+            res_table_query = []
+            res_table_query.append(table_query[0])
+            for i, query in enumerate(table_query[1:]):
+                new_query = dict()
+                ind = i+1
+                if ind+1 < len(table_query):
+                    if query["bn_index"] == table_query[ind+1]["bn_index"] and \
+                        query["query"] == table_query[ind+1]["query"] and \
+                            query["expectation"] == table_query[ind+1]["expectation"]:
+                        continue
+                if i > 0:
+                    if query["bn_index"] == table_query[i]["bn_index"] and \
+                        query["query"] == table_query[i]["query"] and \
+                            query["expectation"] == table_query[i]["expectation"]:
+                        continue
+                new_query["bn_index"] = query["bn_index"]
+                new_query["inverse"] = query["inverse"]
+                new_query["expectation"] = query["expectation"]
+                bn = self.bns[query["bn_index"]]
+                new_query["query"], new_query["n_distinct"] = bn.query_decoding(query["query"])
+                res_table_query.append(new_query)
+            res_table_queries.append(res_table_query)
+        return res_table_queries
+
+
+
+    def cardinality(self, table_query):
+        card = table_query[0]
+        for query in table_query[1:]:
+            bn = self.bns[query["bn_index"]]
+            if len(query["expectation"]) == 0:
+                p, _ = bn.query(query["query"], n_distinct=query["n_distinct"], return_prob=True)
+            else:
+                p, _ = bn.expectation(query["query"], query["expectation"], n_distinct=query["n_distinct"],
+                                      return_prob=True)
+            if p == 0:
+                return 1
+            elif query["inverse"]:
+                card *= (1/p)
+            else:
+                card *= p
+        return card
