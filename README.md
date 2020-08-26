@@ -33,7 +33,9 @@
          --sample_size 200000
   ```
   model_path specifies the location to save the model
+  
   csv_path points the dataset you just downloaded
+  
   algo: one can choose between chow-liu, greedy, exact, junction. Expect for chow-liu, other methods contain a large amount of randomness, so not garuantee to 
   reproduce the exactly same result as paper.
   
