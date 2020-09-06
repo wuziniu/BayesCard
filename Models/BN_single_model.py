@@ -22,11 +22,13 @@ class BN_Single():
             self.fanout_attr_inverse = []
             self.fanout_attr_positive = []
             self.null_values = []
+            self.continuous_map = dict()
         else:
             self.fanout_attr = meta_info['fanout_attr']
             self.fanout_attr_inverse = meta_info['fanout_attr_inverse']
             self.fanout_attr_positive = meta_info['fanout_attr_positive']
             self.null_values = meta_info['null_values']
+            self.continuous_map = meta_info['n_distinct_mapping']
         self.n_in_bin = dict()
         self.encoding = dict()
         self.mapping = dict()
@@ -67,6 +69,7 @@ class BN_Single():
                     table[col],
                     n_mcv=n_mcv,
                     n_bins=n_bins,
+                    is_continous=self.attr_type[col] == "continuous",
                     drop_na=not drop_na,
                     fanout=f
                 )
@@ -86,7 +89,7 @@ class BN_Single():
             n_unique = dataset[col].nunique()
             if n_unique == 2:
                 attr_type[col] = 'boolean'
-            elif n_unique >= len(dataset)/20 or (self.is_numeric(dataset[col].iloc[0]) and n_unique>threshold):
+            elif n_unique >= len(dataset)/20 or (self.is_numeric(dataset[col].iloc[0]) and n_unique > threshold):
                 attr_type[col] = 'continuous'
             else:
                 attr_type[col] = 'categorical'

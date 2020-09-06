@@ -18,13 +18,11 @@ from Pgmpy.inference.EliminationOrder import (
 from Pgmpy.factors.discrete import TabularCPD
 
 class VariableElimination(object):
-    def __init__(self, model, probs=None):
+    def __init__(self, model, probs=None, root=True):
         model.check_model()
         self.model = model
         if probs is not None:
             self.probs = probs
-        elif len(self.model.probs) != 0:
-            self.probs = model.probs
         else:
             self.probs = dict()
 
@@ -53,7 +51,8 @@ class VariableElimination(object):
             for factor in model.get_factors():
                 for var in factor.variables:
                     self.factors[var].append(factor)
-        self.root = self.get_root()
+        if root:
+            self.root = self.get_root()
 
     def get_root(self):
         """Returns the network's root node."""
@@ -99,7 +98,7 @@ class VariableElimination(object):
         return np.sum(factor.values[values])
 
 
-    def _get_working_factors(self, variables=[], evidence=None, return_probs=False, reduce=True):
+    def _get_working_factors(self, variables=[], evidence=None, return_probs=False, reduce=True, BP=False):
         """
         Uses the evidence given to the query methods to modify the factors before running
         the variable elimination algorithm.
@@ -111,41 +110,62 @@ class VariableElimination(object):
         -------
         dict: Modified working factors.
         """
+        if BP:
+            working_factors = {
+                node: {(factor, None) for factor in self.factors[node]}
+                for node in self.factors
+            }
 
-        useful_var = copy.deepcopy(variables)
-        if evidence:
-            useful_var += list(evidence.keys())
-        sub_graph_model = self.steiner_tree(useful_var)
-        variables_sub_graph = set(sub_graph_model.nodes)
+            # Dealing with evidence. Reducing factors over it before VE is run.
+            if evidence:
+                for evidence_var in evidence:
+                    for factor, origin in working_factors[evidence_var]:
+                        factor_reduced = factor.reduce(
+                            [(evidence_var, evidence[evidence_var])], inplace=False
+                        )
+                        for var in factor_reduced.scope():
+                            if var in working_factors:
+                                working_factors[var].remove((factor, origin))
+                                working_factors[var].add((factor_reduced, evidence_var))
+                    if type(evidence[evidence_var]) != list:
+                        del working_factors[evidence_var]
+            return working_factors
 
-        working_factors = dict()
-        for node in sub_graph_model.nodes:
-            working_factors[node] = set()
-            for factor in self.factors[node]:
-                if set(factor.variables).issubset(variables_sub_graph):
-                    working_factors[node].add((factor, None))
+        else:
+            useful_var = copy.deepcopy(variables)
+            if evidence:
+                useful_var += list(evidence.keys())
+            sub_graph_model = self.steiner_tree(useful_var)
+            variables_sub_graph = set(sub_graph_model.nodes)
 
-        if return_probs:
-            probs = dict()
-        # Dealing with evidence. Reducing factors over it before VE is run.
-        if evidence and reduce:
-            for evidence_var in evidence:
-                for factor, origin in working_factors[evidence_var]:
-                    factor_reduced = factor.reduce(
-                        [(evidence_var, evidence[evidence_var])], inplace=False
-                    )
-                    if return_probs:
-                        factor_reduced.normalize()
-                        probs[evidence_var] = self.get_probs(evidence_var, evidence[evidence_var])
-                    for var in factor_reduced.scope():
-                        if var in working_factors:
-                            working_factors[var].remove((factor, origin))
-                            working_factors[var].add((factor_reduced, evidence_var))
-                if type(evidence[evidence_var]) != list:
-                    del working_factors[evidence_var]
-        if return_probs:
-            return working_factors, sub_graph_model, probs
-        return working_factors, sub_graph_model
+            working_factors = dict()
+            for node in sub_graph_model.nodes:
+                working_factors[node] = set()
+                for factor in self.factors[node]:
+                    if set(factor.variables).issubset(variables_sub_graph):
+                        working_factors[node].add((factor, None))
+
+            if return_probs:
+                probs = dict()
+            # Dealing with evidence. Reducing factors over it before VE is run.
+            if evidence and reduce:
+                for evidence_var in evidence:
+                    for factor, origin in working_factors[evidence_var]:
+                        factor_reduced = factor.reduce(
+                            [(evidence_var, evidence[evidence_var])], inplace=False
+                        )
+                        if return_probs:
+                            factor_reduced.normalize()
+                            probs[evidence_var] = self.get_probs(evidence_var, evidence[evidence_var])
+                        for var in factor_reduced.scope():
+                            if var in working_factors:
+                                working_factors[var].remove((factor, origin))
+                                working_factors[var].add((factor_reduced, evidence_var))
+                    if type(evidence[evidence_var]) != list:
+                        del working_factors[evidence_var]
+            if return_probs:
+                return working_factors, sub_graph_model, probs
+            return working_factors, sub_graph_model
 
     def _get_elimination_order(
             self, variables=None, evidence=None, model=None, elimination_order="minfill", show_progress=False
@@ -225,6 +245,7 @@ class VariableElimination(object):
             elimination_order="minfill",
             joint=True,
             show_progress=False,
+            BP=False
     ):
         """
         Implementation of a generalized variable elimination.
@@ -266,12 +287,16 @@ class VariableElimination(object):
         eliminated_variables = set()
         # Get working factors and elimination order
         # tic = time.time()
-        working_factors, sub_graph_model = self._get_working_factors(variables, evidence)
-        # toc = time.time()
-        # print(f"getting working factors takes {toc-tic} secs")
-        elimination_order = self._get_elimination_order(
-            variables, evidence, sub_graph_model, elimination_order, show_progress=show_progress
-        )
+        if BP:
+            working_factors = self._get_working_factors(variables, evidence, BP=BP)
+            elimination_order = self._get_elimination_order(
+                variables, evidence, elimination_order=elimination_order, show_progress=show_progress
+            )
+        else:
+            working_factors, sub_graph_model = self._get_working_factors(variables, evidence)
+            elimination_order = self._get_elimination_order(
+                variables, evidence, sub_graph_model, elimination_order, show_progress=show_progress
+            )
         # print(f"getting elimination orders takes {time.time()-toc} secs")
         # Step 3: Run variable elimination
         if show_progress:
@@ -331,6 +356,7 @@ class VariableElimination(object):
             elimination_order="weightedminfill",
             joint=True,
             show_progress=False,
+            BP=False
     ):
         """
         Parameters
@@ -365,6 +391,7 @@ class VariableElimination(object):
             elimination_order=elimination_order,
             joint=joint,
             show_progress=show_progress,
+            BP=BP
         )
 
 
@@ -801,7 +828,7 @@ class BeliefPropagation(Inference):
         self._calibrate_junction_tree(operation="maximize")
 
     def _query(
-        self, variables, operation, evidence=None, joint=True, show_progress=True
+        self, variables, operation, evidence=None, joint=True, show_progress=False
     ):
         """
         This is a generalized query method that can be used for both query and map query.
@@ -889,20 +916,21 @@ class BeliefPropagation(Inference):
         subtree.add_factors(*clique_potential_list)
 
         # Sum product variable elimination on the subtree
-        variable_elimination = VariableElimination(subtree)
+        variable_elimination = VariableElimination(subtree, root=False)
         if operation == "marginalize":
             return variable_elimination.query(
                 variables=variables,
                 evidence=evidence,
                 joint=joint,
                 show_progress=show_progress,
+                BP=True
             )
         elif operation == "maximize":
             return variable_elimination.map_query(
                 variables=variables, evidence=evidence, show_progress=show_progress
             )
 
-    def query(self, variables, evidence=None, joint=True, show_progress=True):
+    def query(self, variables, evidence=None, joint=True, show_progress=False):
         """
         Query method using belief propagation.
 

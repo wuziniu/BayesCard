@@ -9,7 +9,7 @@ from DataPrepare.join_data_preparation import prepare_sample_hdf
 from DataPrepare.prepare_single_tables import prepare_all_tables
 from Schemas.imdb.schema import gen_job_light_imdb_schema
 from Testing.BN_training import train_DMV, train_Census, train_imdb
-from Testing.BN_testing import evaluate_cardinality_single_table
+from Testing.BN_testing import evaluate_cardinality_single_table, evaluate_cardinality_imdb
 
 
 if __name__ == '__main__':
@@ -50,8 +50,6 @@ if __name__ == '__main__':
     parser.add_argument('--log_level', type=int, default=logging.DEBUG)
 
     args = parser.parse_args()
-    args.exploit_overlapping = not args.no_exploit_overlapping
-    args.merge_indicator_exp = not args.no_merge_indicator_exp
 
     os.makedirs('logs', exist_ok=True)
     logging.basicConfig(
@@ -96,7 +94,8 @@ if __name__ == '__main__':
             train_imdb(schema, args.hdf_path, args.model_path, args.learning_algo, args.max_parents, args.sample_size)
 
         elif args.evaluate_cardinalities:
-            pass
+            evaluate_cardinality_imdb(schema, args.model_path, args.query_file_location, args.infer_algo,
+                                      args.learning_algo, args.max_parents)
 
     elif args.dataset == 'dmv':
         if args.generate_models:

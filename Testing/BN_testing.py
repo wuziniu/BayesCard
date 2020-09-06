@@ -1,5 +1,5 @@
 from Evaluation.cardinality_estimation import parse_query_single_table
-from Evaluation.utils import parse_query
+from Evaluation.parse_query_imdb import prepare_join_queries
 from time import perf_counter
 import numpy as np
 import pickle
@@ -51,4 +51,10 @@ def evaluate_cardinality_single_table(model_path, query_path, infer_algo):
 
     return latencies, q_errors
 
+
+def evaluate_cardinality_imdb(schema, model_path, query_path, infer_algo, learning_algo, max_parents):
+    ensemble_location = "/home/yuxing.hyx/repository/imdb-benchmark/spn_ensembles/ensemble_relationships_imdb-light_10000000.pkl"
+    pairwise_rdc_path = "/home/yuxing.hyx/repository/imdb-benchmark/spn_ensembles/pairwise_rdc.pkl"
+    parsed_queries, true = prepare_join_queries(ensemble_location, pairwise_rdc_path, query_path,
+                                                join_3_rdc_based=False, true_card_exist=True)
 

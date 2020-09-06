@@ -299,8 +299,6 @@ class DiscreteFactor(BaseFactor, StateNameMixin):
                         if inplace=False returns a new `DiscreteFactor` instance.
         """
         # Check if values is an array
-        print("-------------------------------------------")
-        print(values)
         if isinstance(values, str):
             raise TypeError("values: Expected type list or array-like, got type str")
 
@@ -348,9 +346,6 @@ class DiscreteFactor(BaseFactor, StateNameMixin):
         phi.cardinality = cardinality[var_index_to_keep]
         phi.del_state_names(del_state_names)
         phi.values = phi.values[tuple(slice_)]
-        print(f"variables {phi.variables}")
-        print(f"state_names {state_names}")
-        print("------------------------------------------------")
         if not point_query:
             super(DiscreteFactor, phi).store_state_names(
                 phi.variables, cardinality, state_names

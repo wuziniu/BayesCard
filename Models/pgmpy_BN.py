@@ -131,10 +131,11 @@ class Pgmpy_BN(BN_Single):
                 from Pgmpy.inference import BeliefPropagation
                 self.infer_machine = BeliefPropagation(self.model)
                 self.infer_machine.calibrate()
+            except:
                 logger.warning("Graph is not connected, we have automatically set the "
                                "inference algorithm to exact")
-            except:
                 from Pgmpy.inference import VariableElimination
+                self.infer_algo = "exact"
                 self.infer_machine = VariableElimination(self.model)
         elif self.infer_algo == "sampling":
             from Pgmpy.sampling import BayesianModelSampling
@@ -249,23 +250,31 @@ class Pgmpy_BN(BN_Single):
         for attr in query:
             if self.attr_type[attr] == 'continuous':
                 if coverage is None:
+                    n_dis = None
                     if type(query[attr]) == tuple:
                         l = max(self.domain[attr][0], query[attr][0])
                         r = min(self.domain[attr][1], query[attr][1])
                     else:
-                        l = query[attr][0]-epsilon
-                        r = query[attr][0]+epsilon
+                        l = query[attr]-epsilon
+                        r = query[attr]+epsilon
+                        if attr in self.continuous_map and query[attr] in self.continuous_map[attr]:
+                            n_dis = self.continuous_map[attr][query[attr]]
                     if l > r:
                         return None, None
                     query[attr], n_distinct[attr] = self.continuous_range_map(attr, (l, r))
-
+                    if n_dis is not None:
+                        n_distinct[attr] = n_dis
                 else:
                     n_distinct[attr] = coverage[attr]
             elif type(query[attr]) == tuple:
                 query_list = []
-                for val in self.encoding[attr]:
-                    if val not in self.null_values[attr]:
+                if self.null_values is None or len(self.null_values) == 0 or attr not in self.null_values:
+                    for val in self.encoding[attr]:
                         if query[attr][0] <= val <= query[attr][1]:
+                            query_list.append(val)
+                else:
+                    for val in self.encoding[attr]:
+                        if val != self.null_values[attr] and query[attr][0] <= val <= query[attr][1]:
                             query_list.append(val)
                 encode_value = self.apply_encoding_to_value(query_list, attr)
                 if encode_value is None or (encode_value == []):
@@ -284,8 +293,14 @@ class Pgmpy_BN(BN_Single):
         if len(fanout_attrs) == 1:
             return self.fanouts[fanout_attrs[0]]
         else:
-            fanout_attrs_val = [list(self.fanouts[i]) for i in fanout_attrs]
-            return np.asarray(list(itertools.product(*fanout_attrs_val)))
+            fanout_attrs_shape = tuple([len(self.fanouts[i]) for i in fanout_attrs])
+            res = None
+            for i in fanout_attrs:
+                if res is None:
+                    res = self.fanouts[i]
+                else:
+                    res = np.outer(res, self.fanouts[i]).reshape(-1)
+            return res.reshape(fanout_attrs_shape)
 
     def query(self, query, num_samples=1, n_distinct=None, coverage=None, return_prob=False, sample_size=10000):
         """Probability inference using Loopy belief propagation. For example estimate P(X=x, Y=y, Z=z)
