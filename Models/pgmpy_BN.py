@@ -26,9 +26,9 @@ def build_meta_info(column_names, null_values):
     meta_info['fanout_attr'] = fanout_attr
     meta_info['fanout_attr_inverse'] = fanout_attr_inverse
     meta_info['fanout_attr_positive'] = fanout_attr_positive
-    meta_info['continuous_range_map'] = dict()
-    meta_info['continuous_range_map']['keyword_id']={117: 8, 8200: 10, 398: 5, 7084: 20}
-    meta_info['continuous_range_map']['company_id']={22956: 26}
+    meta_info['n_distinct_mapping'] = dict()
+    meta_info['n_distinct_mapping']['movie_keyword.keyword_id']={117: 8, 8200: 10, 398: 5, 7084: 20}
+    meta_info['n_distinct_mapping']['movie_companies.company_id']={22956: 30}
     return meta_info
 
 
@@ -262,12 +262,12 @@ class Pgmpy_BN(BN_Single):
                         r = query[attr]+epsilon
                         if attr in self.n_distinct_mapping:
                             if query[attr] in self.n_distinct_mapping[attr]:
-                                n_distinct = self.n_distinct_mapping[attr][query[attr]]
+                                n_d_temp = self.n_distinct_mapping[attr][query[attr]]
                     if l > r:
                         return None, None
                     query[attr], n_distinct[attr] = self.continuous_range_map(attr, (l, r))
                     if n_d_temp is not None:
-                        n_distinct[attr] = n_d_temp
+                        n_distinct[attr] *= n_d_temp
                 else:
                     n_distinct[attr] = coverage[attr]
             elif type(query[attr]) == tuple:

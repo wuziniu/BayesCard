@@ -69,11 +69,7 @@ class BN_Single():
                     table[col],
                     n_mcv=n_mcv,
                     n_bins=n_bins,
-<<<<<<< Updated upstream
                     is_continous=self.attr_type[col] == "continuous",
-=======
-                    is_continous=(self.attr_type[col]=="continuous"),
->>>>>>> Stashed changes
                     drop_na=not drop_na,
                     fanout=f
                 )
