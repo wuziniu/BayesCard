@@ -26,6 +26,9 @@ def build_meta_info(column_names, null_values):
     meta_info['fanout_attr'] = fanout_attr
     meta_info['fanout_attr_inverse'] = fanout_attr_inverse
     meta_info['fanout_attr_positive'] = fanout_attr_positive
+    meta_info['continuous_range_map'] = dict()
+    meta_info['continuous_range_map']['keyword_id']={117: 8, 8200: 10, 398: 5, 7084: 20}
+    meta_info['continuous_range_map']['company_id']={22956: 26}
     return meta_info
 
 
@@ -250,23 +253,25 @@ class Pgmpy_BN(BN_Single):
         for attr in query:
             if self.attr_type[attr] == 'continuous':
                 if coverage is None:
-                    n_dis = None
+                    n_d_temp = None
                     if type(query[attr]) == tuple:
                         l = max(self.domain[attr][0], query[attr][0])
                         r = min(self.domain[attr][1], query[attr][1])
                     else:
                         l = query[attr]-epsilon
                         r = query[attr]+epsilon
-                        if attr in self.continuous_map and query[attr] in self.continuous_map[attr]:
-                            n_dis = self.continuous_map[attr][query[attr]]
+                        if attr in self.n_distinct_mapping:
+                            if query[attr] in self.n_distinct_mapping[attr]:
+                                n_distinct = self.n_distinct_mapping[attr][query[attr]]
                     if l > r:
                         return None, None
                     query[attr], n_distinct[attr] = self.continuous_range_map(attr, (l, r))
-                    if n_dis is not None:
-                        n_distinct[attr] = n_dis
+                    if n_d_temp is not None:
+                        n_distinct[attr] = n_d_temp
                 else:
                     n_distinct[attr] = coverage[attr]
             elif type(query[attr]) == tuple:
+                query_list = []
                 query_list = []
                 if self.null_values is None or len(self.null_values) == 0 or attr not in self.null_values:
                     for val in self.encoding[attr]:
@@ -346,13 +351,7 @@ class Pgmpy_BN(BN_Single):
                 if attr in query:
                     val = query.pop(attr)
                     probs = self.infer_machine.query([attr], evidence=query).values
-                    print(f"attr: {attr}")
-                    print(f"evidence: {query}")
-                    print(f"factors: {probs}")
-                    print(f"n_distinct: n_distinct[attr]")
-                    print(val)
-                    
-                    if any(np.isnan(probs)):
+                    if np.any(np.isnan(probs)):
                         p_estimate = 0
                         break
                     p = np.sum(probs[val] * n_distinct[attr])
@@ -387,8 +386,6 @@ class Pgmpy_BN(BN_Single):
                     return 0, self.nrows
                 else:
                     return 0
-            print(f"probsQ {probsQ}")
-
             if n_distinct is None:
                 query, n_distinct = self.query_decoding(query, coverage)
             if query is None:
@@ -396,18 +393,19 @@ class Pgmpy_BN(BN_Single):
                     return 0, self.nrows
                 else:
                     return 0
-            print(query)
+            
             probsQF = self.infer_machine.query(fanout_attrs, evidence=query).values
-            print(probsQF)
-            if any(np.isnan(probsQF)):
+            
+            if np.any(np.isnan(probsQF)):
                 if return_prob:
                     return 0, self.nrows
                 else:
                     return 0
             else:
                 probsQF = probsQF / (np.sum(probsQF))
-
-            print(np.sum(probsQF * self.get_fanout_values(fanout_attrs)))
+                
+            fanout_attrs_shape = tuple([len(self.fanouts[i]) for i in fanout_attrs])
+            probsQF = probsQF.reshape(fanout_attrs_shape)
             exp = np.sum(probsQF * self.get_fanout_values(fanout_attrs)) * probsQ
             if return_prob:
                 return exp, self.nrows

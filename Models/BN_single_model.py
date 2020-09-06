@@ -22,13 +22,13 @@ class BN_Single():
             self.fanout_attr_inverse = []
             self.fanout_attr_positive = []
             self.null_values = []
-            self.continuous_map = dict()
+            self.n_distinct_mapping = dict()
         else:
             self.fanout_attr = meta_info['fanout_attr']
             self.fanout_attr_inverse = meta_info['fanout_attr_inverse']
             self.fanout_attr_positive = meta_info['fanout_attr_positive']
             self.null_values = meta_info['null_values']
-            self.continuous_map = meta_info['n_distinct_mapping']
+            self.n_distinct_mapping = meta_info['n_distinct_mapping']
         self.n_in_bin = dict()
         self.encoding = dict()
         self.mapping = dict()
@@ -69,7 +69,11 @@ class BN_Single():
                     table[col],
                     n_mcv=n_mcv,
                     n_bins=n_bins,
+<<<<<<< Updated upstream
                     is_continous=self.attr_type[col] == "continuous",
+=======
+                    is_continous=(self.attr_type[col]=="continuous"),
+>>>>>>> Stashed changes
                     drop_na=not drop_na,
                     fanout=f
                 )
