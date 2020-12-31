@@ -28,7 +28,6 @@ def evaluate_cardinality_single_table(model_path, query_path, infer_algo):
             cardinality_predict = BN.query(query)
         except:
             #In the case, that the query itself is invalid or contains some values that are not recognizable by BN
-            print("This query is not recognizable")
             continue
         card_end_t = perf_counter()
         latency_ms = (card_end_t - card_start_t) * 1000

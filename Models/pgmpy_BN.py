@@ -45,6 +45,7 @@ class Pgmpy_BN(BN_Single):
         self.nrows = nrows
         self.infer_algo = infer_algo
         self.infer_machine = None
+        self.cpds = None
 
     def realign(self, encode_value, n_distinct):
         """
@@ -144,6 +145,12 @@ class Pgmpy_BN(BN_Single):
             from Pgmpy.sampling import BayesianModelSampling
             self.infer_machine = BayesianModelSampling(self.model)
             logger.warning("Using sampling as an inference algorithm is very inefficient")
+        elif self.infer_algo == "progressive_sampling":
+            cpds, topological_order, topological_order_node = self.align_cpds_in_topological()
+            self.cpds = cpds
+            self.topological_order = topological_order
+            self.topological_order_node = topological_order_node
+        else:
             raise NotImplemented
 
     def continuous_range_map(self, col, range):
@@ -307,7 +314,130 @@ class Pgmpy_BN(BN_Single):
                     res = np.outer(res, self.fanouts[i]).reshape(-1)
             return res.reshape(fanout_attrs_shape)
 
-    def query(self, query, num_samples=1, n_distinct=None, coverage=None, return_prob=False, sample_size=10000):
+    def align_cpds_in_topological(self):
+        cpds = self.model.cpds
+        sampling_order = []
+        while len(sampling_order) < len(self.structure):
+            for i, deps in enumerate(self.structure):
+                if i in sampling_order:
+                    continue  # already ordered
+                if all(d in sampling_order for d in deps):
+                    sampling_order.append(i)
+        topological_order = sampling_order
+        topological_order_node = [self.node_names[i] for i in sampling_order]
+        new_cpds = []
+        for n in topological_order_node:
+            for cpd in cpds:
+                if cpd.variable == n:
+                    new_cpds.append(cpd)
+                    break
+        assert len(cpds) == len(new_cpds)
+        return new_cpds, topological_order, topological_order_node
+
+    def get_condition(self, evidence, cpd, topological_order_node, var_evidence):
+        values = cpd.values
+        if evidence[0][0] == -1:
+            assert len(values.shape) == 1
+            probs = values[var_evidence]
+            return_prob = np.sum(probs)
+            probs = probs / return_prob  # re-normalize
+            new_evidence = np.random.choice(var_evidence, p=probs, size=evidence.shape[-1])
+        else:
+            scope = cpd.variable
+            scope_ind = topological_order_node.index(scope)
+            condition = cpd.variables[1:]
+            condition_ind = [topological_order_node.index(c) for c in condition]
+            condition_evidence = evidence[condition_ind]
+            # the following is hardcoded for fast computation
+            if len(condition) == 1:
+                probs = values[:, condition_evidence[0]]
+            elif len(condition) == 2:
+                probs = values[:, condition_evidence[0], condition_evidence[1]]
+            elif len(condition) == 3:
+                probs = values[:, condition_evidence[0], condition_evidence[1], condition_evidence[2]]
+            elif len(condition) == 4:
+                probs = values[:, condition_evidence[0], condition_evidence[1], condition_evidence[2],
+                        condition_evidence[3]]
+            elif len(condition) == 5:
+                probs = values[:, condition_evidence[0], condition_evidence[1], condition_evidence[2],
+                        condition_evidence[3], condition_evidence[4]]
+            elif len(condition) == 6:
+                probs = values[:, condition_evidence[0], condition_evidence[1], condition_evidence[2],
+                        condition_evidence[3], condition_evidence[4], condition_evidence[5]]
+            elif len(condition) == 7:
+                probs = values[:, condition_evidence[0], condition_evidence[1], condition_evidence[2],
+                        condition_evidence[3], condition_evidence[4], condition_evidence[5],
+                        condition_evidence[6]]
+            else:
+                # no more efficient tricks
+                probs = np.zeros((values.shape[0], evidence.shape[-1]))
+                for j in range(values.shape[0]):
+                    probs[j, :] = values[j]
+
+            probs = probs[var_evidence, :]
+            return_prob = np.sum(probs, axis=0)
+            probs = (probs / return_prob)
+            probs[np.isnan(probs)] = 0
+            generate_probs = probs.mean(axis=1)
+            generate_probs = generate_probs / np.sum(generate_probs)
+            new_evidence = np.random.choice(var_evidence, p=generate_probs, size=evidence.shape[-1])
+            # np.asarray([np.random.choice(var_evidence, p=probs[:,i]) for i in range(evidence.shape[-1])])
+        return return_prob, new_evidence
+
+
+    def progressive_sampling(self, query, sample_size):
+        """Using progressive sampling method as described in Naru paper"""
+        if self.cpds is None:
+            cpds, topological_order, topological_order_node = self.align_cpds_in_topological()
+            self.cpds = cpds
+            self.topological_order_node = topological_order_node
+
+        evidence = np.zeros((len(self.topological_order_node), sample_size), dtype=int) - 1
+        probs = np.ones(sample_size)
+        for i, node in enumerate(self.topological_order_node):
+            if node in query:
+                var_evidence = query[node]
+            else:
+                var_evidence = np.arange(self.cpds[i].values.shape[0])
+            new_probs, new_evidence = self.get_condition(evidence, self.cpds[i],
+                                                         self.topological_order_node, var_evidence)
+            evidence[i, :] = new_evidence
+            probs *= new_probs
+        return np.sum(probs) / evidence.shape[-1]
+
+    def progressive_sampling_expectation(self, query, fanout_attrs, sample_size):
+        """Using progressive sampling to do expectation"""
+        if self.cpds is None:
+            cpds, topological_order, topological_order_node = self.align_cpds_in_topological()
+            self.cpds = cpds
+            self.topological_order_node = topological_order_node
+
+        evidence = np.zeros((len(self.topological_order_node), sample_size), dtype=int) - 1
+        exps = np.ones(sample_size)
+        for i, node in enumerate(self.topological_order_node):
+            is_fanout = 0
+            if node in query:
+                var_evidence = query[node]
+            else:
+                var_evidence = np.arange(self.cpds[i].values.shape[0])
+                if node in fanout_attrs and node in self.fanout_attr_inverse:
+                    # the inverse expectation
+                    is_fanout = 1
+                elif node in fanout_attrs and node in self.self.fanout_attr_positive:
+                    # the multiply expectation
+                    is_fanout = 2
+            new_probs, new_evidence = self.get_condition(evidence, self.cpds[i],
+                                                    self.topological_order_node, var_evidence)
+            evidence[i, :] = new_evidence
+            exps *= new_probs
+            if is_fanout == 1:
+                exps /= new_evidence
+            elif is_fanout == 2:
+                exps *= new_evidence
+        return np.sum(exps) / evidence.shape[-1]
+
+
+    def query(self, query, num_samples=1, n_distinct=None, coverage=None, return_prob=False, sample_size=1000):
         """Probability inference using Loopy belief propagation. For example estimate P(X=x, Y=y, Z=z)
            ::Param:: query: dictionary of the form {X:x, Y:y, Z:z}
                      x,y,z can only be a single value
@@ -333,7 +463,14 @@ class Pgmpy_BN(BN_Single):
                 return 0, nrows
             else:
                 return 0
-        if self.infer_algo == "exact" or num_samples == 1:
+
+        if self.infer_algo == "progressive_sampling":
+            p_estimate = self.progressive_sampling(query, sample_size)
+            if return_prob:
+                return (p_estimate, self.nrows)
+            return p_estimate * self.nrows
+
+        elif self.infer_algo == "exact" or num_samples == 1:
             """
             # Using topological order to infer probability
             sampling_order = []
@@ -368,7 +505,7 @@ class Pgmpy_BN(BN_Single):
         return round(p_estimate * nrows)
 
     def expectation(self, query, fanout_attrs, num_samples=1, n_distinct=None, coverage=None,
-                    return_prob=False, sample_size=10000):
+                    return_prob=False, sample_size=1000):
         """
         Calculating the expected value E[P(Q|F)*F]
         Parameters
@@ -378,7 +515,8 @@ class Pgmpy_BN(BN_Single):
         """
         if fanout_attrs is None or len(fanout_attrs) == 0:
             return self.query(query, num_samples, n_distinct, coverage, return_prob, sample_size)
-        else:
+
+        elif self.infer_algo != "progressive_sampling":
             query_prob = copy.deepcopy(query)
             probsQ, _ = self.query(query_prob, num_samples, n_distinct, coverage, True)
             if probsQ == 0:
@@ -411,3 +549,11 @@ class Pgmpy_BN(BN_Single):
                 return exp, self.nrows
             else:
                 return exp * self.nrows
+
+        else:
+            exp = self.progressive_sampling_expectation(query, fanout_attrs, sample_size)
+            if return_prob:
+                return exp, self.nrows
+            else:
+                return exp * self.nrows
+
