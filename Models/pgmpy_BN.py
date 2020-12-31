@@ -116,10 +116,12 @@ class Pgmpy_BN(BN_Single):
         print(f"done, parameter learning took {time.time() - t} secs.")
         #self.init_inference_method()
 
-    def init_inference_method(self):
+    def init_inference_method(self, algorithm=None):
         """
         Initial the inference method for query
         """
+        if algorithm:
+            self.infer_algo = algorithm
         if self.infer_algo is None:
             if self.algorithm == "chow-liu":
                 self.infer_algo = "exact"
@@ -373,15 +375,15 @@ class Pgmpy_BN(BN_Single):
                 probs = np.zeros((values.shape[0], evidence.shape[-1]))
                 for j in range(values.shape[0]):
                     probs[j, :] = values[j]
-            print(len(var_evidence))
-            print(probs.shape)
+            #print(len(var_evidence))
+            #print(probs.shape)
             probs = probs[var_evidence, :]
-            print(probs.shape)
+            #print(probs.shape)
             return_prob = np.sum(probs, axis=0)
-            print(return_prob.shape)
+            #print(return_prob.shape)
             probs = (probs / return_prob)
             probs[np.isnan(probs)] = 0
-            print(probs.shape)
+            #print(probs.shape)
             generate_probs = probs.mean(axis=1)
             if np.sum(generate_probs) == 0:
                 return 0, None
@@ -424,21 +426,17 @@ class Pgmpy_BN(BN_Single):
 
         evidence = np.zeros((len(self.topological_order_node), sample_size), dtype=int) - 1
         exps = np.ones(sample_size)
-        print(fanout_attrs)
         for i, node in enumerate(self.topological_order_node):
-            print(i, node)
-            is_fanout = 0
+            #print(i, node)
+            is_fanout = False
             if node in query:
                 var_evidence = query[node]
             else:
                 var_evidence = np.arange(self.cpds[i].values.shape[0])
-                if node in fanout_attrs and node in self.fanout_attr_inverse:
-                    # the inverse expectation
-                    is_fanout = 1
-                elif node in fanout_attrs and node in self.fanout_attr_positive:
-                    # the multiply expectation
-                    is_fanout = 2
-            print(is_fanout)
+                if node in fanout_attrs:
+                    # fanout attr for expectation computing
+                    is_fanout = True
+            #print(is_fanout)
             if type(var_evidence) == int:
                 var_evidence = [var_evidence]
             new_probs, new_evidence = self.get_condition(evidence, self.cpds[i],
@@ -447,10 +445,8 @@ class Pgmpy_BN(BN_Single):
                 return 0
             evidence[i, :] = new_evidence
             exps *= new_probs
-            if is_fanout == 1:
-                exps /= new_evidence
-            elif is_fanout == 2:
-                exps *= new_evidence
+            if is_fanout:
+                exps *= self.fanouts[node][new_evidence]
         return np.sum(exps) / evidence.shape[-1]
 
 
