@@ -234,5 +234,7 @@ class BN_ensemble():
                 card *= (1/p)
             else:
                 card *= p
+        if card <= 1:
+            card = 1
         return card
 

@@ -27,6 +27,9 @@ def build_meta_info(column_names, null_values):
     meta_info['fanout_attr_inverse'] = fanout_attr_inverse
     meta_info['fanout_attr_positive'] = fanout_attr_positive
     meta_info['n_distinct_mapping'] = dict()
+    #For continuous variables, pandas uses a default equal-width interval, so some values are undercounted/overcounted
+    #Thus the following two lines are hard coded for JOB to account for this effect.
+    #This should be very easy to make it automatic in the future.
     meta_info['n_distinct_mapping']['movie_keyword.keyword_id']={117: 8, 8200: 10, 398: 5, 7084: 20}
     meta_info['n_distinct_mapping']['movie_companies.company_id']={22956: 30}
     return meta_info
@@ -427,7 +430,6 @@ class Pgmpy_BN(BN_Single):
         evidence = np.zeros((len(self.topological_order_node), sample_size), dtype=int) - 1
         exps = np.ones(sample_size)
         for i, node in enumerate(self.topological_order_node):
-            #print(i, node)
             is_fanout = False
             if node in query:
                 var_evidence = query[node]
