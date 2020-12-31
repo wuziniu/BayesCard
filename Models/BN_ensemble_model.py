@@ -218,15 +218,16 @@ class BN_ensemble():
 
 
 
-    def cardinality(self, table_query):
+    def cardinality(self, table_query, sample_size=1000):
         card = table_query[0]
         for query in table_query[1:]:
             bn = self.bns[query["bn_index"]]
             if len(query["expectation"]) == 0:
-                p, _ = bn.query(query["query"], n_distinct=query["n_distinct"], return_prob=True)
+                p, _ = bn.query(query["query"], n_distinct=query["n_distinct"],
+                                  return_prob=True, sample_size=sample_size)
             else:
                 p, _ = bn.expectation(query["query"], query["expectation"], n_distinct=query["n_distinct"],
-                                      return_prob=True)
+                                      return_prob=True,sample_size=sample_size)
             if p == 0:
                 return 1
             elif query["inverse"]:
@@ -234,3 +235,4 @@ class BN_ensemble():
             else:
                 card *= p
         return card
+
