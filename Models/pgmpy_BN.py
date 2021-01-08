@@ -131,7 +131,15 @@ class Pgmpy_BN(BN_Single):
             else:
                 self.infer_algo = "BP"
 
-        if self.infer_algo == "exact":
+        if self.infer_algo == "exact-jit":
+            assert self.algorithm == "chow-liu", "Currently JIT only supports CLT"
+            from Pgmpy.inference import VariableEliminationJIT
+            cpds, topological_order, topological_order_node = self.align_cpds_in_topological()
+            self.cpds = cpds
+            self.topological_order = topological_order
+            self.topological_order_node = topological_order_node
+            self.infer_machine = VariableEliminationJIT(self.model, cpds, topological_order, topological_order_node)
+        elif self.infer_algo == "exact":
             from Pgmpy.inference import VariableElimination
             self.infer_machine = VariableElimination(self.model)
         elif self.infer_algo == "BP":

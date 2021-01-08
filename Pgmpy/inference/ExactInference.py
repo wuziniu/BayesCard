@@ -17,6 +17,179 @@ from Pgmpy.inference.EliminationOrder import (
 )
 from Pgmpy.factors.discrete import TabularCPD
 
+
+class VariableEliminationJIT(object):
+    def __init__(self, model, cpds, topological_order, topological_order_node, probs=None, root=True):
+        model.check_model()
+        self.cpds = cpds
+        self.topological_order = topological_order
+        self.topological_order_node = topological_order_node
+        self.model = model
+        if probs is not None:
+            self.probs = probs
+        else:
+            self.probs = dict()
+
+
+        self.variables = model.nodes()
+
+        self.cardinality = {}
+        self.factors = defaultdict(list)
+
+        if isinstance(model, BayesianModel):
+            self.state_names_map = {}
+            for node in model.nodes():
+                cpd = model.get_cpds(node)
+                if isinstance(cpd, TabularCPD):
+                    self.cardinality[node] = cpd.variable_card
+                    cpd = cpd.to_factor()
+                for var in cpd.scope():
+                    self.factors[var].append(cpd)
+                self.state_names_map.update(cpd.no_to_name)
+        else:
+            assert False, "ExactCLT does not support models other than Discrete BN"
+
+        if root:
+            self.root = self.get_root()
+
+    def get_root(self):
+        """Returns the network's root node."""
+
+        def find_root(graph, node):
+            predecessor = next(self.model.predecessors(node), None)
+            if predecessor:
+                root = find_root(graph, predecessor)
+            else:
+                root = node
+            return root
+
+        return find_root(self, list(self.model.nodes)[0])
+
+    def steiner_tree(self, nodes):
+        """Returns the minimal part of the tree that contains a set of nodes."""
+        sub_nodes = set()
+
+        def walk(node, path):
+            if len(nodes) == 0:
+                return
+
+            if node in nodes:
+                sub_nodes.update(path + [node])
+                nodes.remove(node)
+
+            for child in self.model.successors(node):
+                walk(child, path + [node])
+
+        walk(self.root, [])
+        sub_graph = self.model.subgraph(sub_nodes)
+        sub_graph.cardinalities = defaultdict(int)
+        for node in sub_graph.nodes:
+            sub_graph.cardinalities[node] = self.model.cardinalities[node]
+        return sub_graph
+
+
+    def _get_working_factors(self, query=None, return_probs=False, reduce=True):
+        """
+        Uses the evidence given to the query methods to modify the factors before running
+        the variable elimination algorithm.
+        Parameters
+        ----------
+        evidence: dict
+            Dict of the form {variable: state}
+        Returns
+        -------
+        dict: Modified working factors.
+        """
+        useful_var = list(query.keys())
+        sub_graph_model = self.steiner_tree(useful_var)
+
+        elimination_order = []
+        working_cpds = []
+        working_factors = dict()
+        for i, node in enumerate(self.topological_order_node[::-1]):
+            ind = len(self.topological_order_node)-i-1
+            if node in sub_graph_model.nodes:
+                elimination_order.append(node)
+                cpd = copy.deepcopy(self.cpds[ind])
+                working_cpds.append(cpd)
+                working_factors[node] = [cpd]
+
+        for node in sub_graph_model.nodes:
+            for cpd in working_cpds:
+                if node != cpd.variable and node in cpd.variables:
+                    working_factors[node].append(cpd)
+
+        return working_factors, sub_graph_model, elimination_order
+
+
+    def query(self, query):
+        """
+        Compiles a ppl program into a fixed linear algebra program to speed up the inference
+        ----------
+        query: dict
+            a dict key, value pair as {var: state_of_var_observed}
+            None if no evidence
+
+        """
+        working_factors, sub_graph_model, elimination_order = self._get_working_factors(query)
+        for i, var in enumerate(elimination_order):
+            root_var = i == (len(elimination_order) - 1)
+            if len(working_factors[var]) == 1:
+                #leaf node in BN
+                if var in query:
+                    new_value = working_factors[var][0].values
+                    new_value = np.sum(new_value[query[var]], axis=0)
+                    if root_var:
+                        return new_value
+                else:
+                    if root_var:
+                        return 1
+                    new_value = np.ones(working_factors[var][0].values.shape[-1])
+
+                assert len(new_value.shape) == 1, f"unreduced variable {var}"
+                working_factors[var][0].values = new_value
+            else:
+                if var in query:
+                    self_value = working_factors[var][0].values[query[var]]  #Pr(var|Parent(var))
+                    children_value = []
+                    #check if all children has been reduced
+                    for cpd in working_factors[var][1:]:
+                        #print("y")
+                        child_value = cpd.values[query[var]]    #M(var) = Pr(child(var)|var)
+                        assert len(child_value.shape) == 1, "unreduced children"
+                        children_value.append(child_value)
+                    if len(children_value) == 1:
+                        children_value = children_value[0]
+                    else:
+                        #print(children_value)
+                        children_value = np.prod(np.stack(children_value), axis=0)
+                    if root_var:
+                        new_value = np.dot(self_value, children_value)
+                        return new_value
+                    new_value = np.dot(np.transpose(self_value), children_value)
+                else:
+                    self_value = working_factors[var][0].values  # Pr(var|Parent(var))
+                    children_value = []
+                    # check if all children has been reduced
+                    for cpd in working_factors[var][1:]:
+                        child_value = cpd.values  # M(var) = Pr(child(var)|var)
+                        assert len(child_value.shape) == 1, "unreduced children"
+                        children_value.append(child_value)
+                    if len(children_value) == 1:
+                        children_value = children_value[0]
+                    else:
+                        children_value = np.prod(np.stack(children_value), axis=0)
+                    if root_var:
+                        new_value = np.dot(self_value, children_value)
+                        return new_value
+                    new_value = np.dot(np.transpose(self_value), children_value)
+                assert len(new_value.shape) == 1, f"unreduced variable {var}"
+                working_factors[var][0].values = new_value
+        return 0
+
+
+
+
 class VariableElimination(object):
     def __init__(self, model, probs=None, root=True):
         model.check_model()
