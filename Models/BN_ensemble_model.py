@@ -217,7 +217,6 @@ class BN_ensemble():
         return res_table_queries
 
 
-
     def cardinality(self, table_query, sample_size=1000):
         card = table_query[0]
         for query in table_query[1:]:

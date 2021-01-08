@@ -6,7 +6,10 @@ from functools import reduce
 import networkx as nx
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
+try:
+    from tqdm import tqdm
+except:
+    import tqdm
 from joblib import Parallel, delayed
 
 from Pgmpy.base import DAG

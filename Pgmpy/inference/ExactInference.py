@@ -2,7 +2,10 @@ import itertools
 import networkx as nx
 import numpy as np
 import time
-from tqdm import tqdm
+try:
+    from tqdm import tqdm
+except:
+    import tqdm
 from collections import defaultdict
 from itertools import chain
 import copy
@@ -88,7 +91,7 @@ class VariableEliminationJIT(object):
         return sub_graph
 
 
-    def _get_working_factors(self, query=None, return_probs=False, reduce=True):
+    def _get_working_factors(self, query=None):
         """
         Uses the evidence given to the query methods to modify the factors before running
         the variable elimination algorithm.
@@ -122,14 +125,17 @@ class VariableEliminationJIT(object):
         return working_factors, sub_graph_model, elimination_order
 
 
-    def query(self, query):
+    def query(self, query, n_distinct=None):
         """
         Compiles a ppl program into a fixed linear algebra program to speed up the inference
         ----------
         query: dict
             a dict key, value pair as {var: state_of_var_observed}
             None if no evidence
-
+        n_distinct: dict
+            a dict key, value pair as {var: probability of observed value in state}
+            This is for the case, where we bin the continuous or large domain so each state now contains many observed
+            value. Default to none, meaning no large domain.
         """
         working_factors, sub_graph_model, elimination_order = self._get_working_factors(query)
         for i, var in enumerate(elimination_order):
@@ -138,7 +144,10 @@ class VariableEliminationJIT(object):
                 #leaf node in BN
                 if var in query:
                     new_value = working_factors[var][0].values
-                    new_value = np.sum(new_value[query[var]], axis=0)
+                    if n_distinct:
+                        new_value = np.dot(n_distinct[query[var]], new_value[query[var]])
+                    else:
+                        new_value = np.sum(new_value[query[var]], axis=0)
                     if root_var:
                         return new_value
                 else:
@@ -151,6 +160,8 @@ class VariableEliminationJIT(object):
             else:
                 if var in query:
                     self_value = working_factors[var][0].values[query[var]]  #Pr(var|Parent(var))
+                    if n_distinct:
+                        self_value = (self_value.transpose() * n_distinct[var]).transpose()
                     children_value = []
                     #check if all children has been reduced
                     for cpd in working_factors[var][1:]:
@@ -187,6 +198,77 @@ class VariableEliminationJIT(object):
                 working_factors[var][0].values = new_value
         return 0
 
+    def expectation(self, query, fanout_attrs, fanout_values, n_distinct=None):
+        """
+        Compiles a ppl program into a fixed linear algebra program to speed up the expectation inference
+        """
+        working_factors, sub_graph_model, elimination_order = self._get_working_factors(query)
+        for i, var in enumerate(elimination_order):
+            root_var = i == (len(elimination_order) - 1)
+            if len(working_factors[var]) == 1:
+                #leaf node in BN
+                if var in query:
+                    new_value = working_factors[var][0].values
+                    if n_distinct:
+                        new_value = np.dot(n_distinct[query[var]], new_value[query[var]])
+                    else:
+                        new_value = np.sum(new_value[query[var]], axis=0)
+                    if root_var:
+                        return new_value
+                elif var in fanout_attrs:
+                    assert not root_var, "no querying variables"
+                    new_value = working_factors[var][0].values
+                    new_value = np.dot(fanout_values[var], new_value)
+                else:
+                    if root_var:
+                        return 1
+                    new_value = np.ones(working_factors[var][0].values.shape[-1])
+
+                assert len(new_value.shape) == 1, f"unreduced variable {var}"
+                working_factors[var][0].values = new_value
+            else:
+                if var in query:
+                    self_value = working_factors[var][0].values[query[var]]  #Pr(var|Parent(var))
+                    if n_distinct:
+                        self_value = (self_value.transpose() * n_distinct[var]).transpose()
+                    children_value = []
+                    #check if all children has been reduced
+                    for cpd in working_factors[var][1:]:
+                        #print("y")
+                        child_value = cpd.values[query[var]]    #M(var) = Pr(child(var)|var)
+                        assert len(child_value.shape) == 1, "unreduced children"
+                        children_value.append(child_value)
+                    if len(children_value) == 1:
+                        children_value = children_value[0]
+                    else:
+                        #print(children_value)
+                        children_value = np.prod(np.stack(children_value), axis=0)
+                    if root_var:
+                        new_value = np.dot(self_value, children_value)
+                        return new_value
+                    new_value = np.dot(np.transpose(self_value), children_value)
+
+                else:
+                    self_value = working_factors[var][0].values  # Pr(var|Parent(var))
+                    if var in fanout_attrs:
+                        self_value = (self_value.transpose() * fanout_values[var]).transpose()
+                    children_value = []
+                    # check if all children has been reduced
+                    for cpd in working_factors[var][1:]:
+                        child_value = cpd.values  # M(var) = Pr(child(var)|var)
+                        assert len(child_value.shape) == 1, "unreduced children"
+                        children_value.append(child_value)
+                    if len(children_value) == 1:
+                        children_value = children_value[0]
+                    else:
+                        children_value = np.prod(np.stack(children_value), axis=0)
+                    if root_var:
+                        new_value = np.dot(self_value, children_value)
+                        return new_value
+                    new_value = np.dot(np.transpose(self_value), children_value)
+                assert len(new_value.shape) == 1, f"unreduced variable {var}"
+                working_factors[var][0].values = new_value
+        return 0
 
 
 

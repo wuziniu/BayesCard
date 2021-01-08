@@ -347,17 +347,19 @@ class Pgmpy_BN(BN_Single):
         assert len(cpds) == len(new_cpds)
         return new_cpds, topological_order, topological_order_node
 
-    def get_condition(self, evidence, cpd, topological_order_node, var_evidence):
+    def get_condition(self, evidence, cpd, topological_order_node, var_evidence, n_distinct=None):
         values = cpd.values
         if evidence[0][0] == -1:
             assert len(values.shape) == 1
-            probs = values[var_evidence]
+            if n_distinct:
+                probs = values[var_evidence] * n_distinct
+            else:
+                probs = values[var_evidence]
             return_prob = np.sum(probs)
             probs = probs / return_prob  # re-normalize
             new_evidence = np.random.choice(var_evidence, p=probs, size=evidence.shape[-1])
         else:
             scope = cpd.variable
-            scope_ind = topological_order_node.index(scope)
             condition = cpd.variables[1:]
             condition_ind = [topological_order_node.index(c) for c in condition]
             condition_evidence = evidence[condition_ind]
@@ -388,7 +390,10 @@ class Pgmpy_BN(BN_Single):
                     probs[j, :] = values[j]
             #print(len(var_evidence))
             #print(probs.shape)
-            probs = probs[var_evidence, :]
+            if n_distinct:
+                probs = (probs[var_evidence, :].transpose() * n_distinct).transpose()
+            else:
+                probs = probs[var_evidence, :]
             #print(probs.shape)
             return_prob = np.sum(probs, axis=0)
             #print(return_prob.shape)
@@ -404,7 +409,7 @@ class Pgmpy_BN(BN_Single):
         return return_prob, new_evidence
 
 
-    def progressive_sampling(self, query, sample_size):
+    def progressive_sampling(self, query, sample_size, n_distinct=None):
         """Using progressive sampling method as described in Naru paper"""
         if self.cpds is None:
             cpds, topological_order, topological_order_node = self.align_cpds_in_topological()
@@ -416,19 +421,23 @@ class Pgmpy_BN(BN_Single):
         for i, node in enumerate(self.topological_order_node):
             if node in query:
                 var_evidence = query[node]
+                if n_distinct:
+                    n_distinct_value = n_distinct[node]
+                else:
+                    n_distinct_value = None
             else:
                 var_evidence = np.arange(self.cpds[i].values.shape[0])
             if type(var_evidence) == int:
                 var_evidence = [var_evidence]
             new_probs, new_evidence = self.get_condition(evidence, self.cpds[i],
-                                                         self.topological_order_node, var_evidence)
+                                                         self.topological_order_node, var_evidence, n_distinct_value)
             if new_evidence is None:
                 return 0
             evidence[i, :] = new_evidence
             probs *= new_probs
         return np.sum(probs) / evidence.shape[-1]
 
-    def progressive_sampling_expectation(self, query, fanout_attrs, sample_size):
+    def progressive_sampling_expectation(self, query, fanout_attrs, sample_size, n_distinct=None):
         """Using progressive sampling to do expectation"""
         if self.cpds is None:
             cpds, topological_order, topological_order_node = self.align_cpds_in_topological()
@@ -440,7 +449,11 @@ class Pgmpy_BN(BN_Single):
         for i, node in enumerate(self.topological_order_node):
             is_fanout = False
             if node in query:
-                var_evidence = query[node]
+                var_evidence = n_distinct[node]
+                if n_distinct:
+                    n_distinct_value = n_distinct[node]
+                else:
+                    n_distinct_value = None
             else:
                 var_evidence = np.arange(self.cpds[i].values.shape[0])
                 if node in fanout_attrs:
@@ -450,7 +463,7 @@ class Pgmpy_BN(BN_Single):
             if type(var_evidence) == int:
                 var_evidence = [var_evidence]
             new_probs, new_evidence = self.get_condition(evidence, self.cpds[i],
-                                                    self.topological_order_node, var_evidence)
+                                                    self.topological_order_node, var_evidence, n_distinct_value)
             if new_evidence is None:
                 return 0
             evidence[i, :] = new_evidence
@@ -488,23 +501,18 @@ class Pgmpy_BN(BN_Single):
                 return 0
 
         if self.infer_algo == "progressive_sampling":
-            p_estimate = self.progressive_sampling(query, sample_size)
+            p_estimate = self.progressive_sampling(query, sample_size, n_distinct)
+            if return_prob:
+                return (p_estimate, self.nrows)
+            return p_estimate * self.nrows
+
+        elif self.infer_algo == "exact-jit":
+            p_estimate = self.infer_machine.query(query, n_distinct)
             if return_prob:
                 return (p_estimate, self.nrows)
             return p_estimate * self.nrows
 
         elif self.infer_algo == "exact" or num_samples == 1:
-            """
-            # Using topological order to infer probability
-            sampling_order = []
-            while len(sampling_order) < len(self.structure):
-                for i, deps in enumerate(self.structure):
-                    if i in sampling_order:
-                        continue  # already ordered
-                    if all(d in sampling_order for d in deps):
-                        sampling_order.append(i)
-            sampling_order = [self.node_names[i] for i in sampling_order]
-            """
             sampling_order = list(query.keys())
             p_estimate = 1
             for attr in sampling_order:
@@ -539,7 +547,25 @@ class Pgmpy_BN(BN_Single):
         if fanout_attrs is None or len(fanout_attrs) == 0:
             return self.query(query, num_samples, n_distinct, coverage, return_prob, sample_size)
 
-        elif self.infer_algo != "progressive_sampling":
+        elif self.infer_algo == "progressive_sampling":
+            if n_distinct is None:
+                query, n_distinct = self.query_decoding(query, coverage)
+            exp = self.progressive_sampling_expectation(query, fanout_attrs, sample_size, n_distinct)
+            if return_prob:
+                return exp, self.nrows
+            else:
+                return exp * self.nrows
+
+        elif self.infer_algo == "exact-jit":
+            if n_distinct is None:
+                query, n_distinct = self.query_decoding(query, coverage)
+            exp = self.infer_machine.expectation(query, fanout_attrs, self.fanouts, n_distinct)
+            if return_prob:
+                return exp, self.nrows
+            else:
+                return exp * self.nrows
+
+        else:
             query_prob = copy.deepcopy(query)
             probsQ, _ = self.query(query_prob, num_samples, n_distinct, coverage, True)
             if probsQ == 0:
