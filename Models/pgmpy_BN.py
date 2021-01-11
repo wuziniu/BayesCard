@@ -545,6 +545,7 @@ class Pgmpy_BN(BN_Single):
             return (p_estimate, nrows)
         return round(p_estimate * nrows)
 
+
     def expectation(self, query, fanout_attrs, num_samples=1, n_distinct=None, coverage=None,
                     return_prob=False, sample_size=1000, hard_sample=False):
         """

@@ -301,7 +301,6 @@ class VariableEliminationJIT(object):
         return 0
 
 
-
 class VariableElimination(object):
     def __init__(self, model, probs=None, root=True):
         model.check_model()

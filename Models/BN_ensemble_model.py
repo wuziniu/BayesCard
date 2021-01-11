@@ -232,6 +232,7 @@ class BN_ensemble():
                 #print(f"expectation: {q}, fanout_attr: {e}")
                 p, _ = bn.expectation(query["query"], query["expectation"], n_distinct=query["n_distinct"],
                                       return_prob=True, sample_size=sample_size, hard_sample=hard_sample)
+
             if p == 0:
                 return 1
             elif query["inverse"]:
