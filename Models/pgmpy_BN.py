@@ -139,6 +139,14 @@ class Pgmpy_BN(BN_Single):
             self.topological_order = topological_order
             self.topological_order_node = topological_order_node
             self.infer_machine = VariableEliminationJIT(self.model, cpds, topological_order, topological_order_node)
+        elif self.infer_algo == "exact-jit-torch":
+            assert self.algorithm == "chow-liu", "Currently JIT only supports CLT"
+            from Pgmpy.inference import VariableEliminationJIT_torch
+            cpds, topological_order, topological_order_node = self.align_cpds_in_topological()
+            self.cpds = cpds
+            self.topological_order = topological_order
+            self.topological_order_node = topological_order_node
+            self.infer_machine = VariableEliminationJIT_torch(self.model, cpds, topological_order, topological_order_node)
         elif self.infer_algo == "exact":
             from Pgmpy.inference import VariableElimination
             self.infer_machine = VariableElimination(self.model)
@@ -150,7 +158,8 @@ class Pgmpy_BN(BN_Single):
                 self.infer_machine.calibrate()
             except:
                 logger.warning("Graph is not connected, we have automatically set the "
-                               "inference algorithm to exact")
+                               "inference algorithm to exact. If you would like to use BP,"
+                               "please manually connect the graph.")
                 from Pgmpy.inference import VariableElimination
                 self.infer_algo = "exact"
                 self.infer_machine = VariableElimination(self.model)
@@ -570,7 +579,7 @@ class Pgmpy_BN(BN_Single):
         elif self.infer_algo == "exact-jit":
             if n_distinct is None:
                 query, n_distinct = self.query_decoding(query, coverage)
-            exp = self.infer_machine.expectation(query, fanout_attrs, self.fanouts, n_distinct)
+            exp = self.infer_machine.expectation(query, fanout_attrs, n_distinct)
             if return_prob:
                 return exp, self.nrows
             else:

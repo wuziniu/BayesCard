@@ -28,6 +28,7 @@ class VariableEliminationJIT(object):
         self.topological_order = topological_order
         self.topological_order_node = topological_order_node
         self.model = model
+        self.fanouts = self.model.fanouts
         if probs is not None:
             self.probs = probs
         else:
@@ -35,22 +36,6 @@ class VariableEliminationJIT(object):
 
 
         self.variables = model.nodes()
-
-        self.cardinality = {}
-        self.factors = defaultdict(list)
-
-        if isinstance(model, BayesianModel):
-            self.state_names_map = {}
-            for node in model.nodes():
-                cpd = model.get_cpds(node)
-                if isinstance(cpd, TabularCPD):
-                    self.cardinality[node] = cpd.variable_card
-                    cpd = cpd.to_factor()
-                for var in cpd.scope():
-                    self.factors[var].append(cpd)
-                self.state_names_map.update(cpd.no_to_name)
-        else:
-            assert False, "ExactCLT does not support models other than Discrete BN"
 
         if root:
             self.root = self.get_root()
@@ -121,7 +106,7 @@ class VariableEliminationJIT(object):
             for cpd in working_cpds:
                 if node != cpd.variable and node in cpd.variables:
                     working_factors[node].append(cpd)
-        
+
         return working_factors, sub_graph_model, elimination_order
 
 
@@ -153,15 +138,16 @@ class VariableEliminationJIT(object):
                             new_value = np.dot(n_distinct[var], new_value[query[var]])
                     else:
                         new_value = np.sum(new_value[query[var]], axis=0)
+                    new_value = new_value.reshape(-1)
                     if root_var:
                         return new_value
                     assert len(new_value.shape) == 1, \
-                        f"unreduced variable {working_factors[var][0].variables}, {new_value} with shape {new_value.shape}" 
+                        f"unreduced variable {working_factors[var][0].variables}, {new_value} with shape {new_value.shape}"
                 else:
                     if root_var:
                         return 1
                     new_value = np.ones(working_factors[var][0].values.shape[-1])
-                
+
                 assert len(new_value.shape) == 1, f"unreduced variable {var}"
                 working_factors[var][0].values = new_value
             else:
@@ -211,7 +197,7 @@ class VariableEliminationJIT(object):
                 working_factors[var][0].values = new_value
         return 0
 
-    def expectation(self, query, fanout_attrs, fanout_values, n_distinct=None):
+    def expectation(self, query, fanout_attrs, n_distinct=None):
         """
         Compiles a ppl program into a fixed linear algebra program to speed up the expectation inference
         """
@@ -233,13 +219,14 @@ class VariableEliminationJIT(object):
                             new_value = np.dot(n_distinct[var], new_value[query[var]])
                     else:
                         new_value = np.sum(new_value[query[var]], axis=0)
+                    new_value = new_value.reshape(-1)
                     if root_var:
                         return new_value
                 elif var in fanout_attrs:
                     assert not root_var, "no querying variables"
                     new_value = working_factors[var][0].values
                     #print(new_value.shape)
-                    new_value = np.dot(fanout_values[var], new_value)
+                    new_value = np.dot(self.fanouts[var], new_value)
                 else:
                     if root_var:
                         return 1
@@ -278,7 +265,7 @@ class VariableEliminationJIT(object):
                 else:
                     self_value = working_factors[var][0].values  # Pr(var|Parent(var))
                     if var in fanout_attrs:
-                        self_value = (self_value.transpose() * fanout_values[var]).transpose()
+                        self_value = (self_value.transpose() * self.fanouts[var]).transpose()
                     children_value = []
                     # check if all children has been reduced
                     for cpd in working_factors[var][1:]:

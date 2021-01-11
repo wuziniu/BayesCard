@@ -3,7 +3,7 @@ from collections import defaultdict
 import copy
 
 
-class VariableEliminationJIT(object):
+class VariableEliminationJIT_torch(object):
     def __init__(self, model, old_cpds, topological_order, topological_order_node, probs=None, root=True):
         self.gpu = torch.cuda.is_available()
         model.check_model()
@@ -19,6 +19,13 @@ class VariableEliminationJIT(object):
         self.topological_order = topological_order
         self.topological_order_node = topological_order_node
         self.model = model
+        self.fanouts = copy.deepcopy(self.model.fanouts)
+        for var in self.fanouts:
+            if self.gpu:
+                self.fanouts[var] = torch.from_numpy(self.fanouts[var], dtype=torch.float64).cuda()
+            else:
+                self.fanouts[var] = torch.from_numpy(self.fanouts[var], dtype=torch.float64)
+
         if probs is not None:
             self.probs = probs
         else:
@@ -191,7 +198,7 @@ class VariableEliminationJIT(object):
                 working_factors[var][0].values = new_value
         return 0
 
-    def expectation(self, query, fanout_attrs, fanout_values, n_distinct=None):
+    def expectation(self, query, fanout_attrs, n_distinct=None):
         """
         Compiles a ppl program into a fixed linear algebra program to speed up the expectation inference
         """
@@ -201,11 +208,6 @@ class VariableEliminationJIT(object):
                     n_distinct[var] = torch.tensor(copy.deepcopy(n_distinct[var]), dtype=torch.float64).cuda()
                 else:
                     n_distinct[var] = torch.tensor(copy.deepcopy(n_distinct[var]), dtype=torch.float64)
-        for var in fanout_values:
-            if self.gpu:
-                fanout_values[var] = torch.from_numpy(copy.deepcopy(fanout_values[var]), dtype=torch.float64).cuda()
-            else:
-                fanout_values[var] = torch.from_numpy(copy.deepcopy(fanout_values[var]), dtype=torch.float64)
 
         working_factors, sub_graph_model, elimination_order = self._get_working_factors(query, fanout_attrs)
         for i, var in enumerate(elimination_order):
@@ -232,7 +234,7 @@ class VariableEliminationJIT(object):
                     assert not root_var, "no querying variables"
                     new_value = working_factors[var][0].values
                     # print(new_value.shape)
-                    new_value = torch.matmul(fanout_values[var], new_value)
+                    new_value = torch.matmul(self.fanouts[var], new_value)
                 else:
                     if root_var:
                         return 1
@@ -271,7 +273,7 @@ class VariableEliminationJIT(object):
                 else:
                     self_value = working_factors[var][0].values  # Pr(var|Parent(var))
                     if var in fanout_attrs:
-                        self_value = (self_value.T * fanout_values[var]).T
+                        self_value = (self_value.T * self.fanouts[var]).T
                     children_value = []
                     # check if all children has been reduced
                     for cpd in working_factors[var][1:]:
