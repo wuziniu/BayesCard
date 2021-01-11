@@ -22,18 +22,17 @@ from Pgmpy.factors.discrete import TabularCPD
 
 
 class VariableEliminationJIT(object):
-    def __init__(self, model, cpds, topological_order, topological_order_node, probs=None, root=True):
+    def __init__(self, model, cpds, topological_order, topological_order_node, fanouts=None, probs=None, root=True):
         model.check_model()
         self.cpds = cpds
         self.topological_order = topological_order
         self.topological_order_node = topological_order_node
         self.model = model
-        self.fanouts = self.model.fanouts
+        self.fanouts = fanouts
         if probs is not None:
             self.probs = probs
         else:
             self.probs = dict()
-
 
         self.variables = model.nodes()
 

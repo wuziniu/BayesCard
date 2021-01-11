@@ -138,7 +138,8 @@ class Pgmpy_BN(BN_Single):
             self.cpds = cpds
             self.topological_order = topological_order
             self.topological_order_node = topological_order_node
-            self.infer_machine = VariableEliminationJIT(self.model, cpds, topological_order, topological_order_node)
+            self.infer_machine = VariableEliminationJIT(self.model, cpds, topological_order, topological_order_node,
+                                                       self.fanouts)
         elif self.infer_algo == "exact-jit-torch":
             assert self.algorithm == "chow-liu", "Currently JIT only supports CLT"
             from Pgmpy.inference import VariableEliminationJIT_torch
@@ -146,7 +147,8 @@ class Pgmpy_BN(BN_Single):
             self.cpds = cpds
             self.topological_order = topological_order
             self.topological_order_node = topological_order_node
-            self.infer_machine = VariableEliminationJIT_torch(self.model, cpds, topological_order, topological_order_node)
+            self.infer_machine = VariableEliminationJIT_torch(self.model, cpds, topological_order, topological_order_node,
+                                                             self.fanouts)
         elif self.infer_algo == "exact":
             from Pgmpy.inference import VariableElimination
             self.infer_machine = VariableElimination(self.model)
@@ -525,7 +527,7 @@ class Pgmpy_BN(BN_Single):
                 return (p_estimate, self.nrows)
             return p_estimate * self.nrows
 
-        elif self.infer_algo == "exact-jit":
+        elif self.infer_algo == "exact-jit" or self.infer_algo == "exact-jit-torch":
             p_estimate = self.infer_machine.query(query, n_distinct)
             if return_prob:
                 return (p_estimate, self.nrows)
@@ -576,7 +578,7 @@ class Pgmpy_BN(BN_Single):
             else:
                 return exp * self.nrows
 
-        elif self.infer_algo == "exact-jit":
+        elif self.infer_algo == "exact-jit" or self.infer_algo == "exact-jit-torch":
             if n_distinct is None:
                 query, n_distinct = self.query_decoding(query, coverage)
             exp = self.infer_machine.expectation(query, fanout_attrs, n_distinct)

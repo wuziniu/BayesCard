@@ -4,8 +4,9 @@ import copy
 
 
 class VariableEliminationJIT_torch(object):
-    def __init__(self, model, old_cpds, topological_order, topological_order_node, probs=None, root=True):
+    def __init__(self, model, old_cpds, topological_order, topological_order_node, fanouts=None, probs=None, root=True):
         self.gpu = torch.cuda.is_available()
+        self.gpu = False
         model.check_model()
         self.cpds = []
         cpds = copy.deepcopy(old_cpds)
@@ -19,12 +20,15 @@ class VariableEliminationJIT_torch(object):
         self.topological_order = topological_order
         self.topological_order_node = topological_order_node
         self.model = model
-        self.fanouts = copy.deepcopy(self.model.fanouts)
-        for var in self.fanouts:
-            if self.gpu:
-                self.fanouts[var] = torch.from_numpy(self.fanouts[var], dtype=torch.float64).cuda()
-            else:
-                self.fanouts[var] = torch.from_numpy(self.fanouts[var], dtype=torch.float64)
+        if fanouts:
+            self.fanouts = copy.deepcopy(fanouts)
+            for var in self.fanouts:
+                if self.gpu:
+                    self.fanouts[var] = torch.tensor(self.fanouts[var], dtype=torch.float64).cuda()
+                else:
+                    self.fanouts[var] = torch.tensor(self.fanouts[var], dtype=torch.float64)
+        else:
+            self.fanouts = None
 
         if probs is not None:
             self.probs = probs
