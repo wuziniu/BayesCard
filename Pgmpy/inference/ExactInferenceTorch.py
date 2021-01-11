@@ -4,10 +4,11 @@ import copy
 
 
 class VariableEliminationJIT(object):
-    def __init__(self, model, cpds, topological_order, topological_order_node, probs=None, root=True):
+    def __init__(self, model, old_cpds, topological_order, topological_order_node, probs=None, root=True):
         self.gpu = torch.cuda.is_available()
         model.check_model()
         self.cpds = []
+        cpds = copy.deepcopy(old_cpds)
         for cpd in cpds:
             if self.gpu:
                 cpd.values = torch.from_numpy(cpd.values).cuda()
@@ -112,9 +113,9 @@ class VariableEliminationJIT(object):
         if n_distinct:
             for var in n_distinct:
                 if self.gpu:
-                    n_distinct[var] = torch.from_numpy(n_distinct[var]).cuda()
+                    n_distinct[var] = torch.tensor(copy.deepcopy(n_distinct[var]), dtype=torch.float64).cuda()
                 else:
-                    n_distinct[var] = torch.from_numpy(n_distinct[var])
+                    n_distinct[var] = torch.tensor(copy.deepcopy(n_distinct[var]), dtype=torch.float64)
 
         for i, var in enumerate(elimination_order):
             root_var = i == (len(elimination_order) - 1)
@@ -131,6 +132,7 @@ class VariableEliminationJIT(object):
                             new_value = torch.matmul(n_distinct[var], new_value[query[var]])
                     else:
                         new_value = torch.sum(new_value[query[var]], 0)
+                    new_value = new_value.view(-1)
                     if root_var:
                         return new_value.item()
                     assert len(new_value.shape) == 1, \
@@ -196,14 +198,14 @@ class VariableEliminationJIT(object):
         if n_distinct:
             for var in n_distinct:
                 if self.gpu:
-                    n_distinct[var] = torch.from_numpy(n_distinct[var]).cuda()
+                    n_distinct[var] = torch.tensor(copy.deepcopy(n_distinct[var]), dtype=torch.float64).cuda()
                 else:
-                    n_distinct[var] = torch.from_numpy(n_distinct[var])
+                    n_distinct[var] = torch.tensor(copy.deepcopy(n_distinct[var]), dtype=torch.float64)
         for var in fanout_values:
             if self.gpu:
-                fanout_values[var] = torch.from_numpy(fanout_values[var]).cuda()
+                fanout_values[var] = torch.from_numpy(copy.deepcopy(fanout_values[var]), dtype=torch.float64).cuda()
             else:
-                fanout_values[var] = torch.from_numpy(fanout_values[var])
+                fanout_values[var] = torch.from_numpy(copy.deepcopy(fanout_values[var]), dtype=torch.float64)
 
         working_factors, sub_graph_model, elimination_order = self._get_working_factors(query, fanout_attrs)
         for i, var in enumerate(elimination_order):
@@ -223,6 +225,7 @@ class VariableEliminationJIT(object):
                             new_value = torch.matmul(n_distinct[var], new_value[query[var]])
                     else:
                         new_value = torch.sum(new_value[query[var]], 0)
+                    new_value = new_value.view(-1)
                     if root_var:
                         return new_value.item()
                 elif var in fanout_attrs:
