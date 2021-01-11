@@ -347,7 +347,8 @@ class Pgmpy_BN(BN_Single):
         assert len(cpds) == len(new_cpds)
         return new_cpds, topological_order, topological_order_node
 
-    def get_condition(self, evidence, cpd, topological_order_node, var_evidence, n_distinct=None):
+
+    def get_condition(self, evidence, cpd, topological_order_node, var_evidence, n_distinct=None, hard_sample=False):
         values = cpd.values
         if evidence[0][0] == -1:
             assert len(values.shape) == 1
@@ -399,17 +400,22 @@ class Pgmpy_BN(BN_Single):
             #print(return_prob.shape)
             probs = (probs / return_prob)
             probs[np.isnan(probs)] = 0
-            #print(probs.shape)
-            generate_probs = probs.mean(axis=1)
-            if np.sum(generate_probs) == 0:
-                return 0, None
-            generate_probs = generate_probs / np.sum(generate_probs)
-            new_evidence = np.random.choice(var_evidence, p=generate_probs, size=evidence.shape[-1])
-            # np.asarray([np.random.choice(var_evidence, p=probs[:,i]) for i in range(evidence.shape[-1])])
+            if hard_sample:
+                probs += 1e-7
+                probs = probs/np.sum(probs, axis=0)
+                new_evidence = np.asarray([np.random.choice(var_evidence, p=probs[:,i]) for i in range(evidence.shape[-1])])
+                #print(probs.shape)
+            else:
+                generate_probs = probs.mean(axis=1)
+                if np.sum(generate_probs) == 0:
+                    return 0, None
+                generate_probs = generate_probs / np.sum(generate_probs)
+                new_evidence = np.random.choice(var_evidence, p=generate_probs, size=evidence.shape[-1])
         return return_prob, new_evidence
 
 
-    def progressive_sampling(self, query, sample_size, n_distinct=None):
+
+    def progressive_sampling(self, query, sample_size, n_distinct=None, hard_sample=False):
         """Using progressive sampling method as described in Naru paper"""
         if self.cpds is None:
             cpds, topological_order, topological_order_node = self.align_cpds_in_topological()
@@ -427,17 +433,19 @@ class Pgmpy_BN(BN_Single):
                     n_distinct_value = None
             else:
                 var_evidence = np.arange(self.cpds[i].values.shape[0])
+                n_distinct_value = None
             if type(var_evidence) == int:
                 var_evidence = [var_evidence]
             new_probs, new_evidence = self.get_condition(evidence, self.cpds[i],
-                                                         self.topological_order_node, var_evidence, n_distinct_value)
+                                                         self.topological_order_node, var_evidence, 
+                                                         n_distinct_value, hard_sample=hard_sample)
             if new_evidence is None:
                 return 0
             evidence[i, :] = new_evidence
             probs *= new_probs
         return np.sum(probs) / evidence.shape[-1]
 
-    def progressive_sampling_expectation(self, query, fanout_attrs, sample_size, n_distinct=None):
+    def progressive_sampling_expectation(self, query, fanout_attrs, sample_size, n_distinct=None, hard_sample=False):
         """Using progressive sampling to do expectation"""
         if self.cpds is None:
             cpds, topological_order, topological_order_node = self.align_cpds_in_topological()
@@ -449,13 +457,14 @@ class Pgmpy_BN(BN_Single):
         for i, node in enumerate(self.topological_order_node):
             is_fanout = False
             if node in query:
-                var_evidence = n_distinct[node]
+                var_evidence = query[node]
                 if n_distinct:
                     n_distinct_value = n_distinct[node]
                 else:
                     n_distinct_value = None
             else:
                 var_evidence = np.arange(self.cpds[i].values.shape[0])
+                n_distinct_value = None
                 if node in fanout_attrs:
                     # fanout attr for expectation computing
                     is_fanout = True
@@ -463,7 +472,8 @@ class Pgmpy_BN(BN_Single):
             if type(var_evidence) == int:
                 var_evidence = [var_evidence]
             new_probs, new_evidence = self.get_condition(evidence, self.cpds[i],
-                                                    self.topological_order_node, var_evidence, n_distinct_value)
+                                                         self.topological_order_node, var_evidence, 
+                                                         n_distinct_value, hard_sample=hard_sample)
             if new_evidence is None:
                 return 0
             evidence[i, :] = new_evidence
@@ -473,7 +483,7 @@ class Pgmpy_BN(BN_Single):
         return np.sum(exps) / evidence.shape[-1]
 
 
-    def query(self, query, num_samples=1, n_distinct=None, coverage=None, return_prob=False, sample_size=1000):
+    def query(self, query, num_samples=1, n_distinct=None, coverage=None, return_prob=False, sample_size=1000, hard_sample=False):
         """Probability inference using Loopy belief propagation. For example estimate P(X=x, Y=y, Z=z)
            ::Param:: query: dictionary of the form {X:x, Y:y, Z:z}
                      x,y,z can only be a single value
@@ -501,7 +511,7 @@ class Pgmpy_BN(BN_Single):
                 return 0
 
         if self.infer_algo == "progressive_sampling":
-            p_estimate = self.progressive_sampling(query, sample_size, n_distinct)
+            p_estimate = self.progressive_sampling(query, sample_size, n_distinct, hard_sample=hard_sample)
             if return_prob:
                 return (p_estimate, self.nrows)
             return p_estimate * self.nrows
@@ -536,7 +546,7 @@ class Pgmpy_BN(BN_Single):
         return round(p_estimate * nrows)
 
     def expectation(self, query, fanout_attrs, num_samples=1, n_distinct=None, coverage=None,
-                    return_prob=False, sample_size=1000):
+                    return_prob=False, sample_size=1000, hard_sample=False):
         """
         Calculating the expected value E[P(Q|F)*F]
         Parameters
@@ -550,7 +560,7 @@ class Pgmpy_BN(BN_Single):
         elif self.infer_algo == "progressive_sampling":
             if n_distinct is None:
                 query, n_distinct = self.query_decoding(query, coverage)
-            exp = self.progressive_sampling_expectation(query, fanout_attrs, sample_size, n_distinct)
+            exp = self.progressive_sampling_expectation(query, fanout_attrs, sample_size, n_distinct, hard_sample)
             if return_prob:
                 return exp, self.nrows
             else:
@@ -594,13 +604,6 @@ class Pgmpy_BN(BN_Single):
             fanout_attrs_shape = tuple([len(self.fanouts[i]) for i in fanout_attrs])
             probsQF = probsQF.reshape(fanout_attrs_shape)
             exp = np.sum(probsQF * self.get_fanout_values(fanout_attrs)) * probsQ
-            if return_prob:
-                return exp, self.nrows
-            else:
-                return exp * self.nrows
-
-        else:
-            exp = self.progressive_sampling_expectation(query, fanout_attrs, sample_size)
             if return_prob:
                 return exp, self.nrows
             else:

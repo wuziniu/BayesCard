@@ -6,7 +6,7 @@ import numpy as np
 import pickle
 import time
 
-def evaluate_cardinality_single_table(model_path, query_path, infer_algo):
+def evaluate_cardinality_single_table(model_path, query_path, infer_algo, sample_size=1000):
     # load BN
     with open(model_path, 'rb') as f:
         BN = pickle.load(f)
@@ -25,7 +25,7 @@ def evaluate_cardinality_single_table(model_path, query_path, infer_algo):
             print(f"Predicting cardinality for query {query_no}: {query_str}")
             query = parse_query_single_table(query_str.strip(), BN)
             card_start_t = perf_counter()
-            cardinality_predict = BN.query(query)
+            cardinality_predict = BN.query(query, sample_size=sample_size)
         except:
             #In the case, that the query itself is invalid or contains some values that are not recognizable by BN
             continue

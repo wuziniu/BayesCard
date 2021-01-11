@@ -91,7 +91,7 @@ class VariableEliminationJIT(object):
         return sub_graph
 
 
-    def _get_working_factors(self, query=None):
+    def _get_working_factors(self, query=None, fanout=[]):
         """
         Uses the evidence given to the query methods to modify the factors before running
         the variable elimination algorithm.
@@ -103,7 +103,7 @@ class VariableEliminationJIT(object):
         -------
         dict: Modified working factors.
         """
-        useful_var = list(query.keys())
+        useful_var = list(query.keys()) + fanout
         sub_graph_model = self.steiner_tree(useful_var)
 
         elimination_order = []
@@ -121,7 +121,7 @@ class VariableEliminationJIT(object):
             for cpd in working_cpds:
                 if node != cpd.variable and node in cpd.variables:
                     working_factors[node].append(cpd)
-
+        
         return working_factors, sub_graph_model, elimination_order
 
 
@@ -140,25 +140,35 @@ class VariableEliminationJIT(object):
         working_factors, sub_graph_model, elimination_order = self._get_working_factors(query)
         for i, var in enumerate(elimination_order):
             root_var = i == (len(elimination_order) - 1)
+            #print(var, len(working_factors[var]), root_var)
             if len(working_factors[var]) == 1:
                 #leaf node in BN
                 if var in query:
+                    #print(var, query[var], n_distinct[var])
                     new_value = working_factors[var][0].values
                     if n_distinct:
-                        new_value = np.dot(n_distinct[query[var]], new_value[query[var]])
+                        if len(n_distinct[var]) == 1:
+                            new_value = new_value[query[var]] * n_distinct[var][0]
+                        else:
+                            new_value = np.dot(n_distinct[var], new_value[query[var]])
                     else:
                         new_value = np.sum(new_value[query[var]], axis=0)
                     if root_var:
                         return new_value
+                    assert len(new_value.shape) == 1, \
+                        f"unreduced variable {working_factors[var][0].variables}, {new_value} with shape {new_value.shape}" 
                 else:
                     if root_var:
                         return 1
                     new_value = np.ones(working_factors[var][0].values.shape[-1])
-
+                
                 assert len(new_value.shape) == 1, f"unreduced variable {var}"
                 working_factors[var][0].values = new_value
             else:
                 if var in query:
+                    if type(query[var]) != list:
+                        assert type(query[var]) == int, f"invalid query {query[var]}"
+                        query[var] = [query[var]]
                     self_value = working_factors[var][0].values[query[var]]  #Pr(var|Parent(var))
                     if n_distinct:
                         self_value = (self_value.transpose() * n_distinct[var]).transpose()
@@ -166,8 +176,10 @@ class VariableEliminationJIT(object):
                     #check if all children has been reduced
                     for cpd in working_factors[var][1:]:
                         #print("y")
+                        #print(cpd.variables)
                         child_value = cpd.values[query[var]]    #M(var) = Pr(child(var)|var)
-                        assert len(child_value.shape) == 1, "unreduced children"
+                        assert len(child_value.shape) == 1, \
+                        f"unreduced children {cpd.variables}, {child_value} with shape {child_value.shape}"
                         children_value.append(child_value)
                     if len(children_value) == 1:
                         children_value = children_value[0]
@@ -184,7 +196,8 @@ class VariableEliminationJIT(object):
                     # check if all children has been reduced
                     for cpd in working_factors[var][1:]:
                         child_value = cpd.values  # M(var) = Pr(child(var)|var)
-                        assert len(child_value.shape) == 1, "unreduced children"
+                        assert len(child_value.shape) == 1, \
+                        f"unreduced children {cpd.variables}, {child_value} with shape {child_value.shape}"
                         children_value.append(child_value)
                     if len(children_value) == 1:
                         children_value = children_value[0]
@@ -202,15 +215,22 @@ class VariableEliminationJIT(object):
         """
         Compiles a ppl program into a fixed linear algebra program to speed up the expectation inference
         """
-        working_factors, sub_graph_model, elimination_order = self._get_working_factors(query)
+        working_factors, sub_graph_model, elimination_order = self._get_working_factors(query, fanout_attrs)
         for i, var in enumerate(elimination_order):
             root_var = i == (len(elimination_order) - 1)
+            #print(var, len(working_factors[var]))
             if len(working_factors[var]) == 1:
                 #leaf node in BN
                 if var in query:
                     new_value = working_factors[var][0].values
+                    #print(new_value.shape)
                     if n_distinct:
-                        new_value = np.dot(n_distinct[query[var]], new_value[query[var]])
+                        #print(var, query[var], n_distinct[var])
+                        if len(n_distinct[var]) == 1:
+                            new_value = new_value[query[var]] * n_distinct[var][0]
+                            new_value = new_value.reshape(-1)
+                        else:
+                            new_value = np.dot(n_distinct[var], new_value[query[var]])
                     else:
                         new_value = np.sum(new_value[query[var]], axis=0)
                     if root_var:
@@ -218,16 +238,21 @@ class VariableEliminationJIT(object):
                 elif var in fanout_attrs:
                     assert not root_var, "no querying variables"
                     new_value = working_factors[var][0].values
+                    #print(new_value.shape)
                     new_value = np.dot(fanout_values[var], new_value)
                 else:
                     if root_var:
                         return 1
                     new_value = np.ones(working_factors[var][0].values.shape[-1])
-
-                assert len(new_value.shape) == 1, f"unreduced variable {var}"
+                    
+                #print(new_value)
+                assert len(new_value.shape) == 1, f"unreduced variable {var} with shape {new_value.shape}"
                 working_factors[var][0].values = new_value
             else:
                 if var in query:
+                    if type(query[var]) != list:
+                        assert type(query[var]) == int, f"invalid query {query[var]}"
+                        query[var] = [query[var]]
                     self_value = working_factors[var][0].values[query[var]]  #Pr(var|Parent(var))
                     if n_distinct:
                         self_value = (self_value.transpose() * n_distinct[var]).transpose()
@@ -235,8 +260,10 @@ class VariableEliminationJIT(object):
                     #check if all children has been reduced
                     for cpd in working_factors[var][1:]:
                         #print("y")
+                        #print(cpd.variables)
                         child_value = cpd.values[query[var]]    #M(var) = Pr(child(var)|var)
-                        assert len(child_value.shape) == 1, "unreduced children"
+                        assert len(child_value.shape) == 1, \
+                        f"unreduced children {cpd.variables}, {child_value} with shape {child_value.shape}"
                         children_value.append(child_value)
                     if len(children_value) == 1:
                         children_value = children_value[0]
@@ -255,8 +282,10 @@ class VariableEliminationJIT(object):
                     children_value = []
                     # check if all children has been reduced
                     for cpd in working_factors[var][1:]:
+                        #print(cpd.variables)
                         child_value = cpd.values  # M(var) = Pr(child(var)|var)
-                        assert len(child_value.shape) == 1, "unreduced children"
+                        assert len(child_value.shape) == 1, \
+                        f"unreduced children {cpd.variables}, {child_value} with shape {child_value.shape}"
                         children_value.append(child_value)
                     if len(children_value) == 1:
                         children_value = children_value[0]
@@ -267,6 +296,7 @@ class VariableEliminationJIT(object):
                         return new_value
                     new_value = np.dot(np.transpose(self_value), children_value)
                 assert len(new_value.shape) == 1, f"unreduced variable {var}"
+                #print(new_value)
                 working_factors[var][0].values = new_value
         return 0
 
