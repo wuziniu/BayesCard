@@ -10,6 +10,7 @@
   Additional dependence: numba, bz2, Pyro (These packages are not required to reproduce the result in the paper.)
   
 ## Dataset download:
+The optimal trained models for each dataset are already stored. If you are only interested in verifying the paper's result, you can skip the dataset download and model training, and directly execute the evaluate the learnt model.
 1. DMV dataset:
    The DMV dataset is publically available at catalog.data.gov. The data is continuously updated but there shouldn't be any shift in distribution. If you would
    like to reproduce the exact result as in paper, please contact the author for the snapshot that he downloaded.
