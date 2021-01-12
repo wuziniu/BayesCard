@@ -1,0 +1,50 @@
+2021-01-12 19:13:54,494 [DEBUG]  generate_join_sample(single_table=None, relationship_list=['movie_info_idx.movie_id = title.id'], split_condition=None)
+2021-01-12 19:13:54,494 [DEBUG]  reading first table 'title'
+2021-01-12 19:14:00,661 [DEBUG]  Joining movie_info_idx.movie_id = title.id. Current join size is 2528312.
+2021-01-12 19:14:36,277 [DEBUG]  Final join size is 3448422.
+2021-01-12 19:15:01,684 [INFO ]  Discretizing table takes 25.15127730369568 secs
+2021-01-12 19:15:01,685 [INFO ]  Learning BN optimal structure from data with 3448422.0 rows and 9 cols
+2021-01-12 19:15:15,273 [INFO ]  Structure learning took 13.587932825088501 secs.
+2021-01-12 19:15:15,280 [INFO ]  Model spec[('title.mul_movie_info.movie_id', 'title.production_year'), ('title.mul_movie_info.movie_id', 'title.mul_movie_info_idx.movie_id_nn'), ('title.kind_id', 'title.mul_movie_info.movie_id'), ('title.mul_movie_info.movie_id', 'title.mul_cast_info.movie_id'), ('title.mul_movie_info.movie_id', 'title.mul_movie_keyword.movie_id'), ('title.mul_movie_info.movie_id', 'title.mul_movie_companies.movie_id'), ('title.mul_movie_info_idx.movie_id_nn', 'movie_info_idx.movie_info_idx_nn'), ('title.mul_movie_info_idx.movie_id_nn', 'movie_info_idx.info_type_id')]
+2021-01-12 19:15:15,280 [INFO ]  calling pgm.BayesianModel.fit...
+2021-01-12 19:15:42,264 [INFO ]  done, took 26.984002113342285 secs.
+2021-01-12 19:15:42,272 [DEBUG]  generate_join_sample(single_table=None, relationship_list=['movie_info.movie_id = title.id'], split_condition=None)
+2021-01-12 19:15:42,272 [DEBUG]  reading first table 'movie_info'
+2021-01-12 19:15:51,740 [DEBUG]  Joining movie_info.movie_id = title.id. Current join size is 14835720.
+2021-01-12 19:18:58,205 [DEBUG]  Final join size is 14883333.
+2021-01-12 19:20:41,126 [INFO ]  Discretizing table takes 92.13344168663025 secs
+2021-01-12 19:20:41,126 [INFO ]  Learning BN optimal structure from data with 14895207.0 rows and 9 cols
+2021-01-12 19:20:59,227 [INFO ]  Structure learning took 18.10093355178833 secs.
+2021-01-12 19:20:59,238 [INFO ]  Model spec[('movie_info.movie_info_nn', 'movie_info.info_type_id'), ('title.mul_movie_info.movie_id_nn', 'title.kind_id'), ('title.mul_movie_info.movie_id_nn', 'title.production_year'), ('title.mul_movie_info.movie_id_nn', 'title.mul_movie_info_idx.movie_id'), ('movie_info.info_type_id', 'title.mul_movie_info.movie_id_nn'), ('title.mul_movie_info.movie_id_nn', 'title.mul_cast_info.movie_id'), ('title.mul_movie_info.movie_id_nn', 'title.mul_movie_keyword.movie_id'), ('title.mul_movie_info.movie_id_nn', 'title.mul_movie_companies.movie_id')]
+2021-01-12 19:20:59,239 [INFO ]  calling pgm.BayesianModel.fit...
+2021-01-12 19:24:11,284 [INFO ]  done, took 192.0445327758789 secs.
+2021-01-12 19:24:11,292 [DEBUG]  generate_join_sample(single_table=None, relationship_list=['cast_info.movie_id = title.id'], split_condition=None)
+2021-01-12 19:24:11,292 [DEBUG]  reading first table 'cast_info'
+2021-01-12 19:24:26,116 [DEBUG]  Joining cast_info.movie_id = title.id. Current join size is 36244344.
+2021-01-12 19:32:38,182 [DEBUG]  Final join size is 36306324.
+2021-01-12 19:34:32,461 [INFO ]  Discretizing table takes 94.5256609916687 secs
+2021-01-12 19:34:32,462 [INFO ]  Learning BN optimal structure from data with 36441055.0 rows and 9 cols
+2021-01-12 19:34:48,188 [INFO ]  Structure learning took 15.726583480834961 secs.
+2021-01-12 19:34:48,196 [INFO ]  Model spec[('cast_info.cast_info_nn', 'cast_info.role_id'), ('title.mul_movie_info.movie_id', 'title.kind_id'), ('title.mul_movie_info.movie_id', 'title.production_year'), ('title.mul_movie_info.movie_id', 'title.mul_movie_info_idx.movie_id'), ('title.mul_cast_info.movie_id_nn', 'title.mul_movie_info.movie_id'), ('cast_info.role_id', 'title.mul_cast_info.movie_id_nn'), ('title.mul_movie_info.movie_id', 'title.mul_movie_keyword.movie_id'), ('title.mul_movie_info.movie_id', 'title.mul_movie_companies.movie_id')]
+2021-01-12 19:34:48,197 [INFO ]  calling pgm.BayesianModel.fit...
+2021-01-12 19:37:20,492 [INFO ]  done, took 152.29536819458008 secs.
+2021-01-12 19:37:20,500 [DEBUG]  generate_join_sample(single_table=None, relationship_list=['movie_keyword.movie_id = title.id'], split_condition=None)
+2021-01-12 19:37:20,500 [DEBUG]  reading first table 'title'
+2021-01-12 19:37:27,869 [DEBUG]  Joining movie_keyword.movie_id = title.id. Current join size is 2528312.
+2021-01-12 19:38:37,345 [DEBUG]  Final join size is 6575448.
+2021-01-12 19:39:57,099 [INFO ]  Discretizing table takes 79.20141220092773 secs
+2021-01-12 19:39:57,100 [INFO ]  Learning BN optimal structure from data with 6575448.0 rows and 9 cols
+2021-01-12 19:40:14,441 [INFO ]  Structure learning took 17.34103298187256 secs.
+2021-01-12 19:40:14,451 [INFO ]  Model spec[('title.mul_movie_info.movie_id', 'title.production_year'), ('title.mul_movie_info.movie_id', 'title.mul_movie_info_idx.movie_id'), ('title.kind_id', 'title.mul_movie_info.movie_id'), ('title.mul_movie_info.movie_id', 'title.mul_cast_info.movie_id'), ('title.mul_movie_info.movie_id', 'title.mul_movie_keyword.movie_id_nn'), ('title.mul_movie_info.movie_id', 'title.mul_movie_companies.movie_id'), ('movie_keyword.keyword_id', 'movie_keyword.movie_keyword_nn'), ('title.mul_movie_keyword.movie_id_nn', 'movie_keyword.keyword_id')]
+2021-01-12 19:40:14,451 [INFO ]  calling pgm.BayesianModel.fit...
+2021-01-12 19:42:01,631 [INFO ]  done, took 107.17984437942505 secs.
+2021-01-12 19:42:01,640 [DEBUG]  generate_join_sample(single_table=None, relationship_list=['movie_companies.movie_id = title.id'], split_condition=None)
+2021-01-12 19:42:01,640 [DEBUG]  reading first table 'title'
+2021-01-12 19:42:11,014 [DEBUG]  Joining movie_companies.movie_id = title.id. Current join size is 2528312.
+2021-01-12 19:42:39,316 [DEBUG]  Final join size is 4050205.
+2021-01-12 19:43:15,225 [INFO ]  Discretizing table takes 35.53058409690857 secs
+2021-01-12 19:43:15,226 [INFO ]  Learning BN optimal structure from data with 4050205.0 rows and 10 cols
+2021-01-12 19:43:31,774 [INFO ]  Structure learning took 16.5477077960968 secs.
+2021-01-12 19:43:31,783 [INFO ]  Model spec[('title.mul_movie_info.movie_id', 'title.production_year'), ('title.mul_movie_info.movie_id', 'title.mul_movie_info_idx.movie_id'), ('title.mul_movie_companies.movie_id_nn', 'title.mul_movie_info.movie_id'), ('title.mul_movie_info.movie_id', 'title.mul_cast_info.movie_id'), ('title.mul_movie_info.movie_id', 'title.mul_movie_keyword.movie_id'), ('movie_companies.company_id', 'title.mul_movie_companies.movie_id_nn'), ('movie_companies.company_type_id', 'movie_companies.movie_companies_nn'), ('title.kind_id', 'movie_companies.company_id'), ('movie_companies.company_id', 'movie_companies.company_type_id')]
+2021-01-12 19:43:31,784 [INFO ]  calling pgm.BayesianModel.fit...
+2021-01-12 19:44:17,026 [INFO ]  done, took 45.242011070251465 secs.

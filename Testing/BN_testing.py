@@ -54,8 +54,8 @@ def evaluate_cardinality_single_table(model_path, query_path, infer_algo, sample
 
 
 def evaluate_cardinality_imdb(schema, model_path, query_path, infer_algo, learning_algo, max_parents):
-    ensemble_location = "../Benchmark/IMDB/ensemble_loader.pkl"
-    pairwise_rdc_path = "../Benchmark/IMDB/pairwise_rdc.pkl"
+    ensemble_location = "Benchmark/IMDB/ensemble_loader.pkl"
+    pairwise_rdc_path = "Benchmark/IMDB/pairwise_rdc.pkl"
     parsed_queries, true = prepare_join_queries(ensemble_location, pairwise_rdc_path, query_path,
                                                 join_3_rdc_based=False, true_card_exist=True)
 
@@ -90,6 +90,6 @@ def evaluate_cardinality_imdb(schema, model_path, query_path, infer_algo, learni
     print("=====================================================================================")
     for i in [50, 90, 95, 99, 100]:
         print(f"q-error {i}% percentile is {np.percentile(q_errors, i)}")
-    print(f"average latency is {np.mean(latency)} ms")
+    print(f"average latency is {np.mean(latency)*1000} ms")
 
     return latency, q_errors

@@ -5,6 +5,8 @@ import time
 import shutil
 import numpy as np
 import pandas as pd
+import sys
+sys.path.append('/home/ziniu.wzn/BayesCard')
 from DataPrepare.join_data_preparation import prepare_sample_hdf
 from DataPrepare.prepare_single_tables import prepare_all_tables
 from Schemas.imdb.schema import gen_job_light_imdb_schema
