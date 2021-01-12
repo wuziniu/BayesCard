@@ -47,14 +47,14 @@
          --query_file_location ../Benchmark/DMV/query.sql
          --infer_algo exact
   ```
-  infer_algo: one can choose between exact, BP and sampling. I'm current working on BP's optimization, so please run exact.
+  infer_algo: one can choose between exact, exact-jit, exact-jit-torch, progressive_sampling, BP and sampling. I'm current working on BP's optimization, so there might be some unexpected bugs.
   
 ## Reproducing Census result:
   Similar to DMV, first train the model
   ```
   python run_experiment.py --dataset census
          --generate_models
-         --csv_path .../Census/Census.csv
+         --csv_path ../Census/Census.csv
          --model_path ../Benchmark/Census
          --learning_algo chow-liu
          --max_parents 1
