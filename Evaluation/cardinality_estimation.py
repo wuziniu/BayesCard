@@ -136,20 +136,20 @@ def evaluate_card(bn, query_filename='/home/ziniu.wzn/deepdb-public/benchmarks/i
     return latencies, error
 
 def single_table_experiment():
-    from Models.pgmpy_BN import Pgmpy_BN
+    from Models.Bayescard_BN import Bayescard_BN
     df = pd.read_hdf("/home/ziniu.wzn/imdb-benchmark/gen_single_light/title.hdf")
     new_cols = []
     for col in df.columns:
         new_cols.append(col.replace('.', '__'))
     df.columns = new_cols
-    BN = Pgmpy_BN('title')
+    BN = Bayescard_BN('title')
     BN.build_from_data(df, algorithm="greedy", max_parents=1, n_mcv=30, n_bins=30, ignore_cols=['title_id'],
                        sample_size=500000)
     gd_latency, gd_error = evaluate_card(BN)
     np.save('gd_latency', np.asarray(gd_latency))
     np.save('gd_error', np.asarray(gd_error))
 
-    BN = Pgmpy_BN('title')
+    BN = Bayescard_BN('title')
     BN.build_from_data(df, algorithm="chow-liu", max_parents=1, n_mcv=30, n_bins=30, ignore_cols=['title_id'],
                        sample_size=500000)
     cl_latency, cl_error = evaluate_card(BN)

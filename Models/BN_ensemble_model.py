@@ -6,7 +6,7 @@ import logging
 import ast
 
 from DataPrepare.join_data_preparation import JoinDataPreparator
-from Models.pgmpy_BN import Pgmpy_BN
+from Models.Bayescard_BN import Bayescard_BN
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +66,7 @@ class BN_ensemble():
             df_samples, meta_types, null_values, full_join_est = prep.generate_n_samples(
                 sample_size, relationship_list=[relationship_obj.identifier])
             logger.debug(f"Requested {sample_size} samples and got {len(df_samples)}")
-            bn = Pgmpy_BN()
+            bn = Bayescard_BN()
             bn.build_from_data(df_samples)
             self.add_BN(bn)
 

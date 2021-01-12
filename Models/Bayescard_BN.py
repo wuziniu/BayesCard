@@ -35,7 +35,7 @@ def build_meta_info(column_names, null_values):
     return meta_info
 
 
-class Pgmpy_BN(BN_Single):
+class Bayescard_BN(BN_Single):
     """
     Build a single Bayesian Network for a single table using pgmpy
     """

@@ -1,7 +1,7 @@
 import pandas as pd
 import pickle
 from DataPrepare.join_data_preparation import JoinDataPreparator
-from Models.pgmpy_BN import Pgmpy_BN, build_meta_info
+from Models.Bayescard_BN import Bayescard_BN, build_meta_info
 
 def train_DMV(csv_path, model_path, algorithm, max_parents, sample_size):
     data = pd.read_csv(csv_path)
@@ -14,7 +14,7 @@ def train_DMV(csv_path, model_path, algorithm, max_parents, sample_size):
         else:
             new_cols.append(col.replace(" ", "_"))
     data.columns = new_cols
-    BN = Pgmpy_BN('dmv')
+    BN = Bayescard_BN('dmv')
     BN.build_from_data(data, algorithm=algorithm, max_parents=max_parents, ignore_cols=['id'], sample_size=sample_size)
     model_path += f"/{algorithm}_{max_parents}.pkl"
     pickle.dump(BN, open(model_path, 'wb'), pickle.HIGHEST_PROTOCOL)
@@ -25,7 +25,7 @@ def train_Census(csv_path, model_path, algorithm, max_parents, sample_size):
     df = pd.read_csv(csv_path, header=0, sep=",")
     df = df.drop("caseid", axis=1)
     df = df.dropna(axis=0)
-    BN = Pgmpy_BN('Census')
+    BN = Bayescard_BN('Census')
     BN.build_from_data(df, algorithm=algorithm, max_parents=max_parents, ignore_cols=['id'], sample_size=sample_size)
     model_path += f"/{algorithm}_{max_parents}.pkl"
     pickle.dump(BN, open(model_path, 'wb'), pickle.HIGHEST_PROTOCOL)
@@ -46,7 +46,7 @@ def train_imdb(schema, hdf_path, model_folder, algorithm, max_parents, sample_si
         df, meta_types, null_values, full_join_est = prep.generate_n_samples(
             df_sample_size, relationship_list=[relation], post_sampling_factor=10)
         meta_info = build_meta_info(df.columns, null_values)
-        bn = Pgmpy_BN(relation, meta_info, full_join_est)
+        bn = Bayescard_BN(relation, meta_info, full_join_est)
         model_path = model_folder + f"/{i}_{algorithm}_{max_parents}.pkl"
         bn.build_from_data(df, algorithm=algorithm, max_parents=max_parents, ignore_cols=['id'],
                            sample_size=sample_size)
