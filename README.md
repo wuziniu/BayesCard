@@ -111,7 +111,7 @@ The optimal trained models for each dataset are already stored. If you are only 
           --infer_algo exact-jit
    ```
    
-   #Paper Citation
+   # Paper Citation
    If you find the code useful, please cite our paper:
    ```
    @misc{wu2021bayescard,
