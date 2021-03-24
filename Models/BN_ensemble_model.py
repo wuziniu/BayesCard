@@ -195,6 +195,14 @@ class BN_ensemble():
             res_table_query = []
             res_table_query.append(table_query[0])
             for i, query in enumerate(table_query[1:]):
+                if type(query["bn_index"]) != int:
+                    for j in self.bns:
+                        if set(self.bns[j].table_name) == query["bn_index"]:
+                            query["bn_index"] = j
+                            break
+                assert type(query["bn_index"]) == int, query["bn_index"]
+                
+            for i, query in enumerate(table_query[1:]):
                 new_query = dict()
                 ind = i+1
                 if ind+1 < len(table_query):
