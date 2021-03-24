@@ -7,9 +7,9 @@ import numpy as np
 
 import math
 
-from ensemble_compilation.physical_db import DBConnection
-from ensemble_compilation.spn_ensemble import read_ensemble
-from evaluation.utils import parse_query, save_csv
+from DeepDBUtils.ensemble_compilation.physical_db import DBConnection
+from DeepDBUtils.ensemble_compilation.spn_ensemble import read_ensemble
+from DeepDBUtils.evaluation.utils import parse_query, save_csv
 
 logger = logging.getLogger(__name__)
 

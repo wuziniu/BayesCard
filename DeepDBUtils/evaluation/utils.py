@@ -1,6 +1,8 @@
 import csv
 import logging
 import os
+import pandas
+import time
 
 import sqlparse
 from sqlparse.tokens import Token
@@ -8,6 +10,12 @@ from sqlparse.tokens import Token
 from DeepDBUtils.ensemble_compilation.graph_representation import Query, QueryType, AggregationType, AggregationOperationType
 
 logger = logging.getLogger(__name__)
+
+
+def timestamp_transorform(time_string, start_date = "2010-07-19 00:00:00"):
+    start_date_int = time.strptime(start_date, "%Y-%m-%d %H:%M:%S")
+    time_array = time.strptime(time_string, "'%Y-%m-%d %H:%M:%S'")
+    return int(time.mktime(time_array)) - int(time.mktime(start_date_int))
 
 
 def _extract_identifiers(tokens, enforce_single=True):
@@ -171,15 +179,19 @@ def parse_query(query_str, schema):
         group_by_attributes = _extract_identifiers(tokens_group_by, enforce_single=False)
     else:
         tokens_from_from = parsed_tokens[from_idx:]
-
+    
     # Get identifier to obtain relevant tables
     identifiers = _extract_identifiers(tokens_from_from)
     identifier_token_length = \
         [len(token.tokens) for token in identifiers if isinstance(token, sqlparse.sql.Identifier)][0]
-
+    
     if identifier_token_length == 3:
-        # (title, t)
+        # (title t)
         tables = [(token[0].value, token[2].value) for token in identifiers if
+                  isinstance(token, sqlparse.sql.Identifier)]
+    elif identifier_token_length == 5:
+        # (title as t)
+        tables = [(token[0].value, token[-1].value) for token in identifiers if
                   isinstance(token, sqlparse.sql.Identifier)]
     else:
         # (title, title), no alias
@@ -189,7 +201,7 @@ def parse_query(query_str, schema):
     for table, alias in tables:
         query.table_set.add(table)
         alias_dict[alias] = table
-    
+
     # If there is a group by clause, parse it
     if group_by_attributes is not None:
 
@@ -279,7 +291,6 @@ def parse_query(query_str, schema):
             # Join relationship
             if isinstance(right, sqlparse.sql.Identifier):
                 assert len(right.tokens) == 1, "Invalid Identifier"
-
                 right_attribute = right.tokens[0].value
                 right_table_name = _find_matching_table(right_attribute, schema, alias_dict)
                 right_part = right_table_name + '.' + right_attribute
@@ -305,16 +316,20 @@ def parse_query(query_str, schema):
             right = comparison.right
             # Join relationship
             if isinstance(right, sqlparse.sql.Identifier):
-                assert right.tokens[1].value == '.', "Invalid Identifier"
-                right_part = alias_dict[right.tokens[0].value] + '.' + right.tokens[2].value
-                assert comparison.tokens[operator_idx].value == '=', "Invalid join condition"
-                assert left_part + ' = ' + right_part in schema.relationship_dictionary.keys() or \
-                       right_part + ' = ' + left_part in schema.relationship_dictionary.keys(), "Relationship unknown"
-                if left_part + ' = ' + right_part in schema.relationship_dictionary.keys():
-                    query.add_join_condition(left_part + ' = ' + right_part)
-                elif right_part + ' = ' + left_part in schema.relationship_dictionary.keys():
-                    query.add_join_condition(right_part + ' = ' + left_part)
-
+                if right.tokens[1].value == '.':
+                    right_part = alias_dict[right.tokens[0].value] + '.' + right.tokens[2].value
+                    assert comparison.tokens[operator_idx].value == '=', "Invalid join condition"
+                    assert left_part + ' = ' + right_part in schema.relationship_dictionary.keys() or \
+                           right_part + ' = ' + left_part in schema.relationship_dictionary.keys(), "Relationship unknown"
+                    if left_part + ' = ' + right_part in schema.relationship_dictionary.keys():
+                        query.add_join_condition(left_part + ' = ' + right_part)
+                    elif right_part + ' = ' + left_part in schema.relationship_dictionary.keys():
+                        query.add_join_condition(right_part + ' = ' + left_part)
+                else:
+                    assert right.tokens[1].value == '::'
+                    right.value = str(timestamp_transorform(right.tokens[0].value))
+                    query.add_where_condition(alias_dict[left.tokens[0].value],
+                                          left.tokens[2].value + comparison.tokens[operator_idx].value + right.value)
             # Where condition
             else:
                 query.add_where_condition(alias_dict[left.tokens[0].value],

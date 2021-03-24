@@ -1,7 +1,7 @@
 import logging
 from time import perf_counter
 
-from rspn.code_generation.generate_code import generate_code, replace_template, TemplatePath
+from DeepDBUtils.rspn.code_generation.generate_code import generate_code, replace_template, TemplatePath
 
 logger = logging.getLogger(__name__)
 

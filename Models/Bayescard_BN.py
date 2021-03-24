@@ -3,9 +3,11 @@ import numpy as np
 import copy
 import logging
 import time
+from collections import deque
 from Models.BN_single_model import BN_Single
 import itertools
-
+from DeepDBUtils.rspn.algorithms.ranges import NominalRange, NumericRange
+from Models.tools import MetaType
 logger = logging.getLogger(__name__)
 
 
@@ -35,20 +37,417 @@ def build_meta_info(column_names, null_values):
     return meta_info
 
 
+def _literal_list(condition):
+    _, literals = condition.split('(', 1)
+    return [value.strip(' "\'') for value in literals[:-1].split(',')]
+
+
+def _adapt_ranges(attribute_index, literal, ranges, inclusive=True, lower_than=True):
+    matching_none_intervals = [idx for idx, single_range in enumerate(ranges[:, attribute_index]) if
+                               single_range is None]
+    if lower_than:
+        for idx, single_range in enumerate(ranges):
+            if single_range[attribute_index] is None or single_range[attribute_index].ranges[0][1] <= literal:
+                continue
+            ranges[idx, attribute_index].ranges[0][1] = literal
+            ranges[idx, attribute_index].inclusive_intervals[0][1] = inclusive
+
+        ranges[matching_none_intervals, attribute_index] = NumericRange([[-np.inf, literal]],
+                                                                        inclusive_intervals=[[False, inclusive]])
+
+    else:
+        for idx, single_range in enumerate(ranges):
+            if single_range[attribute_index] is None or single_range[attribute_index].ranges[0][0] >= literal:
+                continue
+            ranges[idx, attribute_index].ranges[0][0] = literal
+            ranges[idx, attribute_index].inclusive_intervals[0][0] = inclusive
+        ranges[matching_none_intervals, attribute_index] = NumericRange([[literal, np.inf]],
+                                                                        inclusive_intervals=[[inclusive, False]])
+
+    return ranges
+
+
 class Bayescard_BN(BN_Single):
     """
     Build a single Bayesian Network for a single table using pgmpy
     """
 
-    def __init__(self, table_name, meta_info=None, nrows=None, method='Pome', debug=True, infer_algo=None):
+    def __init__(self, schema_graph, relationship_list=[], table_set=set(), column_names=None,
+                 full_join_size=None, table_meta_data=None, meta_types=None, null_values=None,
+                 meta_info=None, method='Pome', debug=True, infer_algo=None):
         """
+        schema_graph: contain the information of the schema
+        relationship_list: which relations are this BN built on
+        table_set: which set of tables are this BN built on
+        column_names: the name of the columns
+        table_meta_data: the information about the tables
+        meta_types: the information about attribute types
+        full_join_size: full outer join size of the data this BN is built on
         infer_algo: inference method, choose between 'exact', 'BP'
         """
-        BN_Single.__init__(self, table_name, meta_info, method, debug)
-        self.nrows = nrows
+        BN_Single.__init__(self, table_set, meta_info, method, debug)
+        self.schema_graph = schema_graph
+        self.relationship_set = set()
+        self.table_set = table_set
+
+        self.relationship_set = set()
+        if relationship_list is None:
+            relationship_list = []
+        for relationship in relationship_list:
+            assert (self.schema_graph.relationship_dictionary.get(relationship) is not None)
+            self.relationship_set.add(relationship)
+
+        for relationship in relationship_list:
+            relationship_obj = self.schema_graph.relationship_dictionary.get(relationship)
+            self.table_set.add(relationship_obj.start)
+            self.table_set.add(relationship_obj.end)
+        self.table_meta_data = table_meta_data
+        self.meta_types = meta_types
+        self.null_values = null_values
+        self.column_names = column_names
+        self.full_join_size = full_join_size
+
+        self.nrows = full_join_size
         self.infer_algo = infer_algo
         self.infer_machine = None
         self.cpds = None
+
+    def _parse_conditions(self, conditions, group_by_columns=None, group_by_tuples=None):
+        """
+        Translates string conditions to NumericRange and NominalRanges the SPN understands.
+        """
+        assert self.column_names is not None, "For probability evaluation column names have to be provided."
+        group_by_columns_merged = None
+        if group_by_columns is None or group_by_columns == []:
+            ranges = np.array([None] * len(self.column_names)).reshape(1, len(self.column_names))
+        else:
+            ranges = np.array([[None] * len(self.column_names)] * len(group_by_tuples))
+            group_by_columns_merged = [table + '.' + attribute for table, attribute in group_by_columns]
+
+        for (table, condition) in conditions:
+
+            table_obj = self.schema_graph.table_dictionary[table]
+
+            # is an nn attribute condition
+            if table_obj.table_nn_attribute in condition:
+                full_nn_attribute_name = table + '.' + table_obj.table_nn_attribute
+                # unnecessary because column is never NULL
+                if full_nn_attribute_name not in self.column_names:
+                    continue
+                # column can become NULL
+                elif condition == table_obj.table_nn_attribute + ' IS NOT NULL':
+                    attribute_index = self.column_names.index(full_nn_attribute_name)
+                    ranges[:, attribute_index] = NominalRange([1])
+                    continue
+                elif condition == table_obj.table_nn_attribute + ' IS NULL':
+                    attribute_index = self.column_names.index(full_nn_attribute_name)
+                    ranges[:, attribute_index] = NominalRange([0])
+                    continue
+                else:
+                    raise NotImplementedError
+
+            # for other attributes parse. Find matching attr.
+            matching_fd_cols = [column for column in list(self.table_meta_data[table]['fd_dict'].keys())
+                                if column + '<' in table + '.' + condition or column + '=' in table + '.' + condition
+                                or column + '>' in table + '.' + condition or column + ' ' in table + '.' + condition]
+            matching_cols = [column for column in self.column_names if column + '<' in table + '.' + condition or
+                             column + '=' in table + '.' + condition or column + '>' in table + '.' + condition
+                             or column + ' ' in table + '.' + condition]
+            assert len(matching_cols) == 1 or len(matching_fd_cols) == 1, "Found multiple or no matching columns"
+            if len(matching_cols) == 1:
+                matching_column = matching_cols[0]
+
+            elif len(matching_fd_cols) == 1:
+                matching_fd_column = matching_fd_cols[0]
+
+                def find_recursive_values(column, dest_values):
+                    source_attribute, dictionary = list(self.table_meta_data[table]['fd_dict'][column].items())[0]
+                    if len(self.table_meta_data[table]['fd_dict'][column].keys()) > 1:
+                        logger.warning(f"Current functional dependency handling is not designed for attributes with "
+                                       f"more than one ancestor such as {column}. This can lead to error in further "
+                                       f"processing.")
+                    source_values = []
+                    for dest_value in dest_values:
+                        if not isinstance(list(dictionary.keys())[0], str):
+                            dest_value = float(dest_value)
+                        source_values += dictionary[dest_value]
+
+                    if source_attribute in self.column_names:
+                        return source_attribute, source_values
+                    return find_recursive_values(source_attribute, source_values)
+
+                if '=' in condition:
+                    _, literal = condition.split('=', 1)
+                    literal_list = [literal.strip(' "\'')]
+                elif 'NOT IN' in condition:
+                    literal_list = _literal_list(condition)
+                elif 'IN' in condition:
+                    literal_list = _literal_list(condition)
+
+                matching_column, values = find_recursive_values(matching_fd_column, literal_list)
+                attribute_index = self.column_names.index(matching_column)
+
+                if self.meta_types[attribute_index] == MetaType.DISCRETE:
+                    condition = matching_column + 'IN ('
+                    for i, value in enumerate(values):
+                        condition += '"' + value + '"'
+                        if i < len(values) - 1:
+                            condition += ','
+                    condition += ')'
+                else:
+                    min_value = min(values)
+                    max_value = max(values)
+                    if values == list(range(min_value, max_value + 1)):
+                        ranges = _adapt_ranges(attribute_index, max_value, ranges, inclusive=True, lower_than=True)
+                        ranges = _adapt_ranges(attribute_index, min_value, ranges, inclusive=True, lower_than=False)
+                        continue
+                    else:
+                        raise NotImplementedError
+
+            attribute_index = self.column_names.index(matching_column)
+
+            if self.meta_types[attribute_index] == MetaType.DISCRETE:
+
+                val_dict = self.table_meta_data[table]['categorical_columns_dict'][matching_column]
+
+                if '=' in condition:
+                    column, literal = condition.split('=', 1)
+                    literal = literal.strip(' "\'')
+
+                    if group_by_columns_merged is None or matching_column not in group_by_columns_merged:
+                        ranges[:, attribute_index] = NominalRange([val_dict[literal]])
+                    else:
+                        matching_group_by_idx = group_by_columns_merged.index(matching_column)
+                        # due to functional dependencies this check does not make sense any more
+                        # assert val_dict[literal] == group_by_tuples[0][matching_group_by_idx]
+                        for idx in range(len(ranges)):
+                            literal = group_by_tuples[idx][matching_group_by_idx]
+                            ranges[idx, attribute_index] = NominalRange([literal])
+
+                elif 'NOT IN' in condition:
+                    literal_list = _literal_list(condition)
+                    single_range = NominalRange(
+                        [val_dict[literal] for literal in val_dict.keys() if not literal in literal_list])
+                    if self.null_values[attribute_index] in single_range.possible_values:
+                        single_range.possible_values.remove(self.null_values[attribute_index])
+                    if all([single_range is None for single_range in ranges[:, attribute_index]]):
+                        ranges[:, attribute_index] = single_range
+                    else:
+                        for i, nominal_range in enumerate(ranges[:, attribute_index]):
+                            ranges[i, attribute_index] = NominalRange(
+                                list(set(nominal_range.possible_values).intersection(single_range.possible_values)))
+
+                elif 'IN' in condition:
+                    literal_list = _literal_list(condition)
+                    single_range = NominalRange([val_dict[literal] for literal in literal_list])
+                    if all([single_range is None for single_range in ranges[:, attribute_index]]):
+                        ranges[:, attribute_index] = single_range
+                    else:
+                        for i, nominal_range in enumerate(ranges[:, attribute_index]):
+                            ranges[i, attribute_index] = NominalRange(list(
+                                set(nominal_range.possible_values).intersection(single_range.possible_values)))
+
+            elif self.meta_types[attribute_index] == MetaType.REAL:
+                if '<=' in condition:
+                    _, literal = condition.split('<=', 1)
+                    literal = float(literal.strip())
+                    ranges = _adapt_ranges(attribute_index, literal, ranges, inclusive=True, lower_than=True)
+
+                elif '>=' in condition:
+                    _, literal = condition.split('>=', 1)
+                    literal = float(literal.strip())
+                    ranges = _adapt_ranges(attribute_index, literal, ranges, inclusive=True, lower_than=False)
+                elif '=' in condition:
+                    _, literal = condition.split('=', 1)
+                    literal = float(literal.strip())
+
+                    def non_conflicting(single_numeric_range):
+                        assert single_numeric_range[attribute_index] is None or \
+                               (single_numeric_range[attribute_index][0][0] > literal or
+                                single_numeric_range[attribute_index][0][1] < literal), "Value range does not " \
+                                                                                        "contain any values"
+
+                    map(non_conflicting, ranges)
+                    if group_by_columns_merged is None or matching_column not in group_by_columns_merged:
+                        ranges[:, attribute_index] = NumericRange([[literal, literal]])
+                    else:
+                        matching_group_by_idx = group_by_columns_merged.index(matching_column)
+                        assert literal == group_by_tuples[0][matching_group_by_idx]
+                        for idx in range(len(ranges)):
+                            literal = group_by_tuples[idx][matching_group_by_idx]
+                            ranges[idx, attribute_index] = NumericRange([[literal, literal]])
+
+                elif '<' in condition:
+                    _, literal = condition.split('<', 1)
+                    literal = float(literal.strip())
+                    ranges = _adapt_ranges(attribute_index, literal, ranges, inclusive=False, lower_than=True)
+                elif '>' in condition:
+                    _, literal = condition.split('>', 1)
+                    literal = float(literal.strip())
+                    ranges = _adapt_ranges(attribute_index, literal, ranges, inclusive=False, lower_than=False)
+                else:
+                    raise ValueError("Unknown operator")
+
+                def is_invalid_interval(single_numeric_range):
+                    assert single_numeric_range[attribute_index].ranges[0][1] >= \
+                           single_numeric_range[attribute_index].ranges[0][0], \
+                        "Value range does not contain any values"
+
+                map(is_invalid_interval, ranges)
+
+            else:
+                raise ValueError("Unknown Metatype")
+
+        if group_by_columns_merged is not None:
+            for matching_group_by_idx, column in enumerate(group_by_columns_merged):
+                if column not in self.column_names:
+                    continue
+                attribute_index = self.column_names.index(column)
+                if self.meta_types[attribute_index] == MetaType.DISCRETE:
+                    for idx in range(len(ranges)):
+                        literal = group_by_tuples[idx][matching_group_by_idx]
+                        if not isinstance(literal, list):
+                            literal = [literal]
+
+                        if ranges[idx, attribute_index] is None:
+                            ranges[idx, attribute_index] = NominalRange(literal)
+                        else:
+                            updated_possible_values = set(ranges[idx, attribute_index].possible_values).intersection(
+                                literal)
+                            ranges[idx, attribute_index] = NominalRange(list(updated_possible_values))
+
+                elif self.meta_types[attribute_index] == MetaType.REAL:
+                    for idx in range(len(ranges)):
+                        literal = group_by_tuples[idx][matching_group_by_idx]
+                        assert not isinstance(literal, list)
+                        ranges[idx, attribute_index] = NumericRange([[literal, literal]])
+                else:
+                    raise ValueError("Unknown Metatype")
+
+        return ranges
+
+    def compute_mergeable_relationships(self, query, start_table):
+        """
+        Compute which relationships are merged starting from a certain table (Application B)
+        """
+
+        relationships = []
+        queue = deque()
+        queue.append(start_table)
+
+        while queue:
+            # BFS
+            table = queue.popleft()
+
+            # list neighbours
+            table_obj = self.schema_graph.table_dictionary[table]
+
+            for relationship in table_obj.incoming_relationships:
+                # only mergeable if part of SPN and still to be merged in query
+                if relationship.identifier in self.relationship_set and \
+                        relationship.identifier in query.relationship_set and \
+                        relationship.identifier not in relationships:
+                    relationships.append(relationship.identifier)
+                    queue.append(relationship.start)
+
+            for relationship in table_obj.outgoing_relationships:
+                # only mergeable if part of SPN and still to be merged in query
+                if relationship.identifier in self.relationship_set and \
+                        relationship.identifier in query.relationship_set and \
+                        relationship.identifier not in relationships:
+                    relationships.append(relationship.identifier)
+                    queue.append(relationship.end)
+
+        return relationships
+
+    def relevant_conditions(self, query, merged_tables=None):
+        """Compute conditions for E(1/multiplier * 1_{c_1 Λ… Λc_n}) (Application A)."""
+
+        condition_dict = query.table_where_condition_dict
+        conditions = []
+
+        if merged_tables is None:
+            merged_tables = query.table_set.intersection(self.table_set)
+
+        # Conditions from Query
+        for table in condition_dict.keys():
+            if table in merged_tables:
+                for condition in condition_dict[table]:
+                    conditions.append((table, condition))
+
+        # We have to require the tables of the query to be not null
+        # This can happen since we learn the SPN on full outer join
+        for table in merged_tables:
+            table_obj = self.schema_graph.table_dictionary[table]
+            condition = table_obj.table_nn_attribute + ' IS NOT NULL'
+            conditions.append((table, condition))
+
+        return conditions
+
+    def compute_multipliers(self, query):
+        """Compute normalizing multipliers for E(1/multiplier * 1_{c_1 Λ… Λc_n}) (Application A).
+
+        Idea: Do a BFS tree search. Only a relevant multiplier if relationship is from
+        higher degree to lower degree. So we store each table in dict.
+        """
+
+        queue = deque()
+        depth_dict = dict()
+        # Usually for BFS we would need a set of visited nodes. This is not required here.
+        # We can simply use depth_dict
+
+        for table in query.table_set:
+            queue.append(table)
+            depth_dict[table] = 0
+
+        depth_dict = self.compute_depths(queue, depth_dict)
+        norm_multipliers = []
+
+        # evaluate for every relationship if normalization is necessary
+        for relationship in self.relationship_set:
+            if relationship not in query.relationship_set:
+                relationship_obj = self.schema_graph.relationship_dictionary[relationship]
+
+                # only queries directed to query have to be included
+                if depth_dict[relationship_obj.start] > depth_dict[relationship_obj.end]:
+                    norm_multipliers.append((relationship_obj.end, relationship_obj.multiplier_attribute_name_nn))
+
+        return norm_multipliers
+
+    def compute_depths(self, queue, depth_dict):
+        """
+        Do a BFS to compute min-distance of tables to set of tables already in queue.
+        """
+
+        # while not empty
+        while queue:
+            # BFS
+            table = queue.popleft()
+
+            # list neighbours
+            table_obj = self.schema_graph.table_dictionary[table]
+
+            for relationship in table_obj.incoming_relationships:
+                # only consider if part of relationships of combine-SPN
+                if relationship.identifier in self.relationship_set:
+
+                    # potentially new table
+                    potential_new_table = relationship.start
+                    if potential_new_table not in depth_dict.keys():
+                        queue.append(potential_new_table)
+                        depth_dict[potential_new_table] = depth_dict[table] + 1
+
+            for relationship in table_obj.outgoing_relationships:
+                # only consider if part of relationships of combine-SPN
+                if relationship.identifier in self.relationship_set:
+
+                    # potentially new table
+                    potential_new_table = relationship.end
+                    if potential_new_table not in depth_dict.keys():
+                        queue.append(potential_new_table)
+                        depth_dict[potential_new_table] = depth_dict[table] + 1
+
+        return depth_dict
 
     def realign(self, encode_value, n_distinct):
         """

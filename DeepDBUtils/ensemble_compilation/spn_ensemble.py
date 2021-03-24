@@ -11,7 +11,6 @@ import scipy.stats
 from DeepDBUtils.ensemble_compilation.graph_representation import Query, QueryType, AggregationType, AggregationOperationType
 from DeepDBUtils.ensemble_compilation.probabilistic_query import IndicatorExpectation, Expectation
 from DeepDBUtils.evaluation.utils import parse_what_if_query, all_operations_of_type
-from spn.algorithms.Statistics import get_structure_stats
 import bz2
 
 np.random.seed(1)

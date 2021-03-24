@@ -5,9 +5,9 @@ from enum import Enum
 class Table:
     """Represents a table with foreign key and primary key relationships"""
 
-    def __init__(self, table_name, primary_key=["id"], table_nn_attribute=None, table_size=1000, csv_file_location=None,
-                 attributes=None, irrelevant_attributes=None, keep_fk_attributes=None, sample_rate=1.0, fd_list=None,
-                 no_compression=None):
+    def __init__(self, table_name, primary_key=["Id"], table_nn_attribute=None, table_size=1000, csv_file_location=None,
+                 attributes=None, irrelevant_attributes=None, keep_fk_attributes=None, drop_id_attributes=[],
+                 sample_rate=1.0, fd_list=None, no_compression=None):
 
         self.table_name = table_name
         self.table_size = table_size
@@ -21,6 +21,7 @@ class Table:
         self.keep_fk_attributes = keep_fk_attributes
         if keep_fk_attributes is None:
             self.keep_fk_attributes = []
+        self.drop_id_attributes = drop_id_attributes
         self.no_compression = no_compression
         if no_compression is None:
             self.no_compression = []

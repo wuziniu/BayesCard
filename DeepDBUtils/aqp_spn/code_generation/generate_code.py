@@ -6,10 +6,10 @@ import numpy as np
 from spn.structure.Base import assign_ids, Product, get_number_of_nodes
 from spn.structure.StatisticalTypes import MetaType
 
-import os
+from aqp_spn.aqp_leaves import Categorical, IdentityNumericLeaf, Sum
+from ensemble_compilation.spn_ensemble import read_ensemble
 
-from rspn.structure.base import Sum
-from rspn.structure.leaves import Categorical, IdentityNumericLeaf
+import os
 
 logger = logging.getLogger(__name__)
 

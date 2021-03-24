@@ -5,8 +5,8 @@ from spn.structure.Base import Product
 
 from scipy.spatial import distance
 
-from DeepDBUtils.rspn.structure.base import Sum
-from DeepDBUtils.rspn.structure.leaves import Categorical, IdentityNumericLeaf
+from rspn.structure.base import Sum
+from rspn.structure.leaves import Categorical, IdentityNumericLeaf
 
 logger = logging.getLogger(__name__)
 

@@ -1,4 +1,4 @@
-from DeepDBUtils.ensemble_compilation.graph_representation import SchemaGraph, Table
+from ensemble_compilation.graph_representation import SchemaGraph, Table
 
 
 def gen_mini_ssb_schema(csv_path):

@@ -3,6 +3,10 @@ import math
 import copy
 import numpy as np
 import pandas as pd
+from enum import Enum
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def categorical_qcut(series, q, start_value, fanout=0, fanout_values=[]):
@@ -126,4 +130,36 @@ def discretize_series(series: pd.Series, n_mcv, n_bins, is_continous=False, cont
         temp = temp.fillna(n_mcv+n_bins+1)  # Replace np.nan with some integer that is not in encoding
 
     return temp, n_distinct, encoding, None, domains, np.asarray(fanout_values)
+
+
+class MetaType(Enum):
+    REAL = 1
+    BINARY = 2
+    DISCRETE = 3
+
+
+class Type(Enum):
+    REAL = (1, MetaType.REAL)
+    INTERVAL = (2, MetaType.REAL)
+    POSITIVE = (3, MetaType.REAL)
+    CATEGORICAL = (4, MetaType.DISCRETE)
+    ORDINAL = (5, MetaType.DISCRETE)
+    COUNT = (6, MetaType.DISCRETE)
+    BINARY = (7, MetaType.BINARY)
+
+    def __init__(self, enum_val, meta_type):
+        self._enum_val = enum_val
+        self._meta_type = meta_type
+
+    @property
+    def meta_type(self):
+        return self._meta_type
+
+
+META_TYPE_MAP = {
+    MetaType.REAL: [Type.REAL, Type.INTERVAL, Type.POSITIVE],
+    MetaType.BINARY: [Type.BINARY],
+    MetaType.DISCRETE: [Type.CATEGORICAL, Type.ORDINAL, Type.COUNT],
+}
+
 
