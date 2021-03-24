@@ -1,0 +1,6 @@
+2021-01-12 10:23:10,472 [INFO ]  Discretizing table takes 253.09866857528687 secs
+2021-01-12 10:23:10,473 [INFO ]  Learning BN optimal structure from data with 11575483 rows and 10 cols
+2021-01-12 10:23:16,830 [INFO ]  Structure learning took 6.3571937084198 secs.
+2021-01-12 10:23:16,834 [INFO ]  Model spec[('Record_Type', 'Registration_Class'), ('County', 'State'), ('Registration_Class', 'County'), ('Body_Type', 'Model_Year'), ('Registration_Class', 'Body_Type'), ('Body_Type', 'Fuel_Type'), ('County', 'Scofflaw_Indicator'), ('Registration_Class', 'Suspension_Indicator'), ('Registration_Class', 'Revocation_Indicator')]
+2021-01-12 10:23:16,835 [INFO ]  calling pgm.BayesianModel.fit...
+2021-01-12 10:25:37,475 [INFO ]  done, took 140.64023423194885 secs.

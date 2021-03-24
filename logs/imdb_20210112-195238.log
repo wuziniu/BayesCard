@@ -1,0 +1,5 @@
+2021-01-12 19:52:39,346 [DEBUG]  Including SPN with table_set {'movie_info_idx', 'title'} with sampling ratio(3448422 / 3448422.0)
+2021-01-12 19:52:39,347 [DEBUG]  Including SPN with table_set {'movie_info', 'title'} with sampling ratio(10000000 / 14895207.0)
+2021-01-12 19:52:39,347 [DEBUG]  Including SPN with table_set {'cast_info', 'title'} with sampling ratio(10000000 / 36441055.0)
+2021-01-12 19:52:39,347 [DEBUG]  Including SPN with table_set {'movie_keyword', 'title'} with sampling ratio(6575448 / 6575448.0)
+2021-01-12 19:52:39,347 [DEBUG]  Including SPN with table_set {'movie_companies', 'title'} with sampling ratio(4050205 / 4050205.0)
