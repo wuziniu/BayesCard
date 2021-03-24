@@ -83,7 +83,7 @@ class BN_Single():
         if isinstance(val, float):
             return True
 
-    def get_attr_type(self, dataset, threshold=3000):
+    def get_attr_type(self, dataset, threshold=10000):
         attr_type = dict()
         for col in dataset.columns:
             n_unique = dataset[col].nunique()

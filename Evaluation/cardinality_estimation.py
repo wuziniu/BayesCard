@@ -62,15 +62,15 @@ def construct_table_query(BN, table_query, attr, ops, val, epsilon=1e-6):
         return None
     if BN.attr_type[attr] == 'continuous':
         if ops == ">=":
-            query_domain = [val, np.infty]
+            query_domain = (val, np.infty)
         elif ops == ">":
-            query_domain = [val + epsilon, np.infty]
+            query_domain = (val + epsilon, np.infty)
         elif ops == "<=":
-            query_domain = [-np.infty, val]
+            query_domain = (-np.infty, val)
         elif ops == "<":
-            query_domain = [-np.infty, val - epsilon]
+            query_domain = (-np.infty, val - epsilon)
         elif ops == "=" or ops == "==":
-            query_domain = [val, val]
+            query_domain = val
         else:
             assert False, f"operation {ops} is invalid for continous domain"
 
