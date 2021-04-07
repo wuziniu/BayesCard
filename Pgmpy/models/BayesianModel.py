@@ -313,6 +313,8 @@ class BayesianModel(DAG):
             if not issubclass(estimator, BaseEstimator):
                 raise TypeError("Estimator object should be a valid pgmpy estimator.")
 
+        self.data_length = len(data)
+
         _estimator = estimator(
             self,
             data,
@@ -321,6 +323,35 @@ class BayesianModel(DAG):
         )
         cpds_list = _estimator.get_parameters(**kwargs)
         self.add_cpds(*cpds_list)
+
+    def update(self, data):
+        from Pgmpy.estimators import MaximumLikelihoodEstimator
+        estimator = MaximumLikelihoodEstimator
+        #incrementally update the model with the given data point
+        old_len = self.data_length
+        current_len = len(data)
+        new_len = old_len + current_len
+
+        for node in sorted(self.model.nodes()):
+            state_counts = estimator.state_counts(node)
+            state_counts.loc[:, (state_counts == 0).all()] = 1
+            current_values = np.array(state_counts)
+            assert np.all(np.isclose(np.sum(current_values, axis=0), 1.0)), \
+                f"invalid condition distribution of current_values"
+            for cpd in self.cpds:
+                if cpd.variable == node:
+                    old_values = cpd.values
+                    assert np.all(np.isclose(np.sum(old_values, axis=0), 1.0)), \
+                        f"invalid condition distribution of old_values"
+                    assert old_values.shape == current_values.shape, \
+                        f"tabular shape mismatch {old_values.shape} {current_values.shape}"
+                    new_values = old_values * (old_len/new_len) + current_values * (current_len/new_len)
+                    assert np.all(np.isclose(np.sum(new_values, axis=0), 1.0)), \
+                        f"invalid condition distribution of new_values"
+                    cpd.values = new_values
+        self.data_length += current_len
+
+
 
     def predict(self, data, n_jobs=-1):
         """

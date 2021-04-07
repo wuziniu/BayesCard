@@ -176,7 +176,6 @@ def prepare_single_table(schema_graph, table, path, max_distinct_vals=10000, csv
 
         # numerical value
         else:
-
             logger.debug("\t\tPreparing numerical values for column {}".format(rel_attribute))
 
             # all nan values

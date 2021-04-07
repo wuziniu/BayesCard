@@ -492,6 +492,7 @@ class Bayescard_BN(BN_Single):
                                                         n_mcv, n_bins, ignore_cols, 'chow-liu',
                                                         drop_na, max_parents, root, n_jobs,
                                                         return_dataset=True, discretized=discretized)
+        self.data_length = len(discrete_table)
         spec = []
         orphans = []
         for i, parents in enumerate(self.structure):
@@ -513,10 +514,21 @@ class Bayescard_BN(BN_Single):
             except:
                 self.model = self.model
                 logger.warning(
-                    "This BN is not able to transform into junction tree, probably because it's not connected, just use BN")
+                    "This BN is not able to transform into junction tree, probably because "
+                    "it's not connected, just use BN")
         logger.info(f"done, took {time.time() - t} secs.")
         print(f"done, parameter learning took {time.time() - t} secs.")
         #self.init_inference_method()
+
+    def update_from_data(self, dataset):
+        """
+        Preserve the structure and only incrementally update the parameters of BN.
+        """
+        t = time.time()
+        discrete_table = self.process_dataset(dataset)
+        self.model.update(discrete_table)
+        print(f"done, parameter updating took {time.time() - t} secs.")
+
 
     def init_inference_method(self, algorithm=None):
         """

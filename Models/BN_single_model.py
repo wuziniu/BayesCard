@@ -77,6 +77,19 @@ class BN_Single():
         self.node_names = list(table.columns)
         return table
 
+    def process_dataset(self, dataset):
+        """
+        This function can only be called when updating models.
+        It works similar to build_discrete_table function.
+        Parameters
+        ----------
+        dataset: input raw dataset of pd.dataframe
+
+        Returns: discretized dataset in the same way the model is trained on
+        -------
+        """
+        return
+
     def is_numeric(self, val):
         if isinstance(val, int):
             return True

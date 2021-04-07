@@ -102,3 +102,4 @@ class MaximumLikelihoodEstimator(ParameterEstimator):
         )
         cpd.normalize()
         return cpd
+
