@@ -303,7 +303,6 @@ class Bayescard_BN(BN_Single):
                     n_distinct[attr] = coverage[attr]
             elif type(query[attr]) == tuple:
                 query_list = []
-                query_list = []
                 if self.null_values is None or len(self.null_values) == 0 or attr not in self.null_values:
                     for val in self.encoding[attr]:
                         if query[attr][0] <= val <= query[attr][1]:
