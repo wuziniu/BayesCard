@@ -8,12 +8,29 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 
-def read_table_csv(table_obj, csv_seperator=','):
+def read_table_hdf(table_obj, csv_seperator=','):
+    """
+    Reads hdf from path, renames columns and drops unnecessary columns
+    """
+    df_rows = pd.read_hdf(table_obj.csv_file_location)
+    df_rows.columns = [table_obj.table_name + '.' + attr for attr in table_obj.attributes]
+
+    for attribute in table_obj.irrelevant_attributes:
+        df_rows = df_rows.drop(table_obj.table_name + '.' + attribute, axis=1)
+
+    return df_rows.apply(pd.to_numeric, errors="ignore")
+
+
+def read_table_csv(table_obj, csv_seperator=',', stats=True):
     """
     Reads csv from path, renames columns and drops unnecessary columns
     """
-    df_rows = pd.read_csv(table_obj.csv_file_location, header=None, escapechar='\\', encoding='utf-8', quotechar='"',
-                          sep=csv_seperator)
+    if stats:
+        df_rows = pd.read_csv(table_obj.csv_file_location)
+    else:
+        df_rows = pd.read_csv(table_obj.csv_file_location, header=None, escapechar='\\', encoding='utf-8',
+                              quotechar='"',
+                              sep=csv_seperator)
     df_rows.columns = [table_obj.table_name + '.' + attr for attr in table_obj.attributes]
 
     for attribute in table_obj.irrelevant_attributes:
@@ -40,6 +57,7 @@ def prepare_single_table(schema_graph, table, path, max_distinct_vals=10000, csv
                          max_table_data=20000000):
     """
     Reads table csv. Adds multiplier fields, missing value imputation, dict for categorical data. Adds null tuple tables.
+
     :param schema_graph:
     :param table:
     :return:
@@ -145,7 +163,7 @@ def prepare_single_table(schema_graph, table, path, max_distinct_vals=10000, csv
 
         # categorical value
         if table_data.dtypes[attribute] == object:
-
+            # print(attribute, table_data[attribute].dtypes)
             logger.debug("\t\tPreparing categorical values for column {}".format(rel_attribute))
 
             distinct_vals = table_data[attribute].unique()
@@ -176,6 +194,7 @@ def prepare_single_table(schema_graph, table, path, max_distinct_vals=10000, csv
 
         # numerical value
         else:
+
             logger.debug("\t\tPreparing numerical values for column {}".format(rel_attribute))
 
             # all nan values
@@ -187,6 +206,7 @@ def prepare_single_table(schema_graph, table, path, max_distinct_vals=10000, csv
 
                 # not the best solution but works
                 unique_null_val = table_data[attribute].mean() + 0.0001
+                unique_null_val = -np.abs(unique_null_val) - 100000
                 assert not (table_data[attribute] == unique_null_val).any()
 
                 table_data[attribute] = table_data[attribute].fillna(unique_null_val)
@@ -212,6 +232,7 @@ def prepare_single_table(schema_graph, table, path, max_distinct_vals=10000, csv
 
     # save modified table
     if len(table_data) < max_table_data:
+        # table_data.to_hdf(path, key='df')
         table_data.to_hdf(path, key='df', format='table')
     else:
         table_data.sample(max_table_data).to_hdf(path, key='df', format='table')
@@ -264,6 +285,6 @@ def prepare_all_tables(schema_graph, path, csv_seperator=',', max_table_data=200
     prep_end_t = perf_counter()
 
     with open(path + '/build_time_hdf.txt', "w") as text_file:
-        text_file.write(str(round(prep_end_t-prep_start_t)))
+        text_file.write(str(round(prep_end_t - prep_start_t)))
 
     return meta_data
