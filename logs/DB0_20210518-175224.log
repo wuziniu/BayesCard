@@ -1,0 +1,7 @@
+2021-05-18 17:52:24,809 [INFO ]  Generating HDF files for tables in /home/ziniu.wzn/AttEst_support/DB0 and store to path /home/ziniu.wzn/AttEst_support/DB0/gen_hdf
+2021-05-18 17:52:24,809 [INFO ]  Removing target path /home/ziniu.wzn/AttEst_support/DB0/gen_hdf
+2021-05-18 17:52:24,809 [INFO ]  Making target path /home/ziniu.wzn/AttEst_support/DB0/gen_hdf
+2021-05-18 17:52:24,810 [INFO ]  Preparing hdf file for table table0
+2021-05-18 17:52:24,848 [INFO ]  Managing functional dependencies for table table0
+2021-05-18 17:52:24,851 [INFO ]  Preparing multipliers for table table0
+2021-05-18 17:52:24,851 [INFO ]  Preparing multiplier table5.table0Id = table0.Id for table table0

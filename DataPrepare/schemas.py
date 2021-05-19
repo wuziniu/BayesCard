@@ -1,4 +1,4 @@
-from Data_prepare.graph_representation import SchemaGraph, Table
+from DataPrepare.graph_representation import SchemaGraph, Table
 
 
 def gen_job_light_imdb_schema(csv_path):
@@ -369,4 +369,80 @@ def gen_stats_light_schema(hdf_path):
     schema.add_relationship('posts', 'OwnerUserId', 'users', 'Id')
 
     return schema
+
+
+
+def gen_DB0_schema(hdf_path):
+    """
+    Generate the stats schema with a small subset of data.
+    """
+
+    schema = SchemaGraph()
+
+    # tables
+
+    schema.add_table(Table('table0', attributes=['Id', 'attr0', 'attr1', 'attr2', 'attr3', 'attr4', 'attr5', 'attr6'],
+                           csv_file_location=hdf_path + 'table0.csv',
+                           no_compression=[],
+                           table_size=40325))
+
+    # posts
+    schema.add_table(Table('table1', attributes=['Id', 'attr0', 'attr1', 'attr2',
+                                                 'attr3', 'attr4',
+                                                 'attr5', 'attr6', 'table0Id'],
+                           csv_file_location=hdf_path + 'table1.csv',
+                           no_compression=[],
+                           table_size=91976))
+
+
+    # badges
+    schema.add_table(Table('table2', attributes=['Id', 'attr0', 'table0Id'],
+                           no_compression=[],
+                           csv_file_location=hdf_path + 'table2.csv',
+                           table_size=123357))
+
+    # votes
+    schema.add_table(Table('table3', attributes=['Id', 'attr0', 'attr1', 'attr2', 'attr3', 'table1Id', 'table0Id'],
+                           csv_file_location=hdf_path + 'table3.csv',
+                           no_compression=[],
+                           table_size=497954))
+
+    # postHistory
+    schema.add_table(Table('table4', attributes=['Id', 'attr0', 'attr1', 'attr2', 'attr3', 'attr4', 'table1Id', 'table0Id'],
+                           csv_file_location=hdf_path + 'table4.csv',
+                           no_compression=['PostHistoryTypeId'],
+                           table_size=300919))
+
+    # comments
+    schema.add_table(Table('table5', attributes=['Id', 'attr0', 'attr1', 'attr2', 'table1Id', 'table0Id'],
+                           csv_file_location=hdf_path + 'table5.csv',
+                           no_compression=[],
+                           table_size=153140))
+
+    # postLinks
+    schema.add_table(Table('table6', attributes=['Id', 'attr0', 'attr1', 'attr2', 'table1Id', 'table1Id2'],
+                           csv_file_location=hdf_path + 'table6.csv',
+                           no_compression=[],
+                           table_size=19531))
+
+    # relationships
+    schema.add_relationship('table5', 'table1Id', 'table1', 'Id')
+    schema.add_relationship('table5', 'table0Id', 'table0', 'Id')
+
+    schema.add_relationship('table2', 'table0Id', 'table0', 'Id')
+
+
+    schema.add_relationship('table6', 'table1Id', 'table1', 'Id')
+    schema.add_relationship('table6', 'table1Id2', 'table1', 'Id')
+
+    schema.add_relationship('table4', 'table1Id', 'table1', 'Id')
+    schema.add_relationship('table4', 'table0Id', 'table0', 'Id')
+    schema.add_relationship('table3', 'table1Id', 'table1', 'Id')
+    schema.add_relationship('table3', 'table0Id', 'table0', 'Id')
+
+    schema.add_relationship('table1', 'table0Id', 'table0', 'Id')
+
+    return schema
+
+
 

@@ -5,10 +5,10 @@ import pickle
 import random
 
 import pandas as pd
-from spn.structure.StatisticalTypes import MetaType
+from DataPrepare.StatisticalTypes import MetaType
 
-from data_preparation.prepare_single_tables import find_relationships
-from ensemble_creation.utils import create_random_join
+from DataPrepare.prepare_single_tables import find_relationships
+from DataPrepare.utils import create_random_join
 
 logger = logging.getLogger(__name__)
 

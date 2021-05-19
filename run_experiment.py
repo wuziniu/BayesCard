@@ -10,8 +10,9 @@ sys.path.append('/home/ziniu.wzn/BayesCard')
 from DataPrepare.join_data_preparation import prepare_sample_hdf
 from DataPrepare.prepare_single_tables import prepare_all_tables
 from Schemas.imdb.schema import gen_job_light_imdb_schema
-from Testing.BN_training import train_DMV, train_Census, train_imdb
-from Testing.BN_testing import evaluate_cardinality_single_table, evaluate_cardinality_imdb
+from DataPrepare.schemas import gen_DB0_schema
+#from Testing.BN_training import train_DMV, train_Census, train_imdb
+#from Testing.BN_testing import evaluate_cardinality_single_table, evaluate_cardinality_imdb
 
 
 if __name__ == '__main__':
@@ -65,9 +66,12 @@ if __name__ == '__main__':
     logger = logging.getLogger(__name__)
 
     #dealing with imdb job
-    if args.dataset == 'imdb':
-        table_csv_path = args.csv_path + '/{}.csv'
-        schema = gen_job_light_imdb_schema(table_csv_path)
+    if args.dataset == 'imdb' or args.dataset == 'DB0':
+        table_csv_path = args.csv_path + '/'
+        if args.dataset == 'imdb':
+            schema = gen_job_light_imdb_schema(table_csv_path)
+        else:
+            schema = gen_DB0_schema(table_csv_path)
         # generate hdf file the way deepdb does
         if args.generate_hdf:
             logger.info(f"Generating HDF files for tables in {args.csv_path} and store to path {args.hdf_path}")
@@ -93,10 +97,13 @@ if __name__ == '__main__':
         elif args.generate_models:
             if not os.path.exists(args.model_path):
                 os.makedirs(args.model_path)
-            train_imdb(schema, args.hdf_path, args.model_path, args.learning_algo, args.max_parents, args.sample_size)
+            if args.dataset == 'imdb':
+                train_imdb(schema, args.hdf_path, args.model_path, args.learning_algo, args.max_parents, args.sample_size)
+            
 
         elif args.evaluate_cardinalities:
-            evaluate_cardinality_imdb(schema, args.model_path, args.query_file_location, args.infer_algo,
+            if args.dataset == 'imdb':
+                evaluate_cardinality_imdb(schema, args.model_path, args.query_file_location, args.infer_algo,
                                       args.learning_algo, args.max_parents)
 
     elif args.dataset == 'dmv':

@@ -1,6 +1,5 @@
 from DeepDBUtils.ensemble_compilation.spn_ensemble import read_ensemble
 from DeepDBUtils.evaluation.utils import parse_query
-from DeepDBUtils.schemas.imdb.schema import gen_job_light_imdb_schema
 from DeepDBUtils.ensemble_compilation.graph_representation import Query
 from DeepDBUtils.ensemble_compilation.probabilistic_query import IndicatorExpectation, Expectation
 from DeepDBUtils.aqp_spn.aqp_spn import AQPSPN

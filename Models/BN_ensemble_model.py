@@ -770,14 +770,17 @@ class BN_ensemble():
         card = table_query[0]
         for query in table_query[1:]:
             bn = self.bns[query["bn_index"]]
+            #print("=============================================")
+            #print("bn_index:", query["bn_index"])
+            #print(bn.relationship_set)
             if len(query["expectation"]) == 0:
-                #q = query["query"]
+                q = query["query"]
                 #print(f"query: {q}")
                 p, _ = bn.query(query["query"], n_distinct=query["n_distinct"],
                                   return_prob=True, sample_size=sample_size, hard_sample=hard_sample)
             else:
-                #q = query["query"]
-                #e = query["expectation"]
+                q = query["query"]
+                e = query["expectation"]
                 #print(f"expectation: {q}, fanout_attr: {e}")
                 p, _ = bn.expectation(query["query"], query["expectation"], n_distinct=query["n_distinct"],
                                       return_prob=True, sample_size=sample_size, hard_sample=hard_sample)
@@ -785,8 +788,10 @@ class BN_ensemble():
             if p == 0:
                 return 1
             elif query["inverse"]:
+                #print("inverse p:", 1/p)
                 card *= (1/p)
             else:
+                #print("p", p)
                 card *= p
         if card <= 1:
             card = 1

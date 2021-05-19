@@ -224,6 +224,7 @@ def generate_factors(spn_ensemble, query, first_spn, next_mergeable_relationship
         # add not null condition for next neighbor
         conditions.append((next_neighbour, next_neighbour_obj.table_nn_attribute + " IS NOT NULL"))
         multipliers = next_spn.compute_multipliers(denominator_query)
+        #print("denominator_exp:", multipliers, denominator_query.table_set, denominator_query.relationship_set)
         denominator_exp = IndicatorExpectation(multipliers, conditions, spn=next_spn, inverse=True,
                                                table_set=overlapping_tables)
 
@@ -257,44 +258,103 @@ def factor_refine(factors_full):
     return [factor for factor in factors_full if factor not in factors_to_be_deleted]
 
 
-def load_ensemble(schema, model_path="/home/ziniu.wzn/stats/FSPN_ensemble/"):
-    fspn_ensemble = BN_ensemble(schema)
+def further_refine(results, bn_ensemble, query):
+    seen = []
+    seen_tables = set()
+    relationship_set = query.relationship_set
+    print(relationship_set)
+    for i in range(1, len(results)):
+        query1 = results[i]
+        bn_index1 = query1["bn_index"]
+        if i in seen:
+            continue
+        curr_tables = bn_ensemble.bns[bn_index1].table_set
+        for j in range(i+1, len(results)):
+            query2 = results[j]
+            bn_index2 = query2["bn_index"]
+            if j in seen:
+                continue
+            if bn_index1 == bn_index2:
+                f_attrs = list(bn_ensemble.bns[bn_index1].fanouts.keys())
+                f_inners = [x for x in f_attrs if "mul_" in x and "_nn" in x]
+                if query2["inverse"]:
+                    for f in f_inners:
+                        left = f.split("mul_")[0] + "Id"
+                        right = f.split("mul_")[1].split("_nn")[0]
+                        print(bn_index1, ":", f)
+                        if left+" = "+right in relationship_set or right+" = "+left in relationship_set:
+                            print(len(curr_tables.intersection(seen_tables)) != 0 and f not in query1["expectation"])
+                            print(curr_tables, seen_tables)
+                            print(query1["expectation"])
+                            if len(curr_tables.intersection(seen_tables)) != 0 and f not in query1["expectation"]:
+                                print("adding:", bn_index1, ":", f)
+                                query1["expectation"].append(f)
+             
+                elif query1["inverse"]:
+                    for f in f_inners:
+                        left = f.split("mul_")[0] + "Id"
+                        right = f.split("mul_")[1].split("_nn")[0]
+                        print(bn_index1, ":", f)
+                        if left+" = "+right in relationship_set or right+" = "+left in relationship_set:
+                            print(len(curr_tables.intersection(seen_tables)) != 0 and f not in query2["expectation"])
+                            if len(curr_tables.intersection(seen_tables)) != 0 and f not in query2["expectation"]:
+                                print("adding:", bn_index1, ":", f)
+                                query2["expectation"].append(f)
+                seen.append(i)
+                seen.append(j)
+            seen_tables |= curr_tables
+    return results
+                    
+    
+
+def load_ensemble(schema, model_path="/home/ziniu.wzn/stats/BN_ensemble/"):
+    bn_ensemble = BN_ensemble(schema)
     for file in os.listdir(model_path):
         if file.endswith(".pkl"):
-            print(file)
             with open(model_path + file, "rb") as f:
-                fspn = pickle.load(f)
-            fspn_ensemble.fspns.append(fspn)
-    return fspn_ensemble
+                try:
+                    bn = pickle.load(f)
+                    bn.infer_algo = "exact-jit"
+                    bn.init_inference_method()
+                except:
+                    continue
+            bn_ensemble.bns.append(bn)
+    return bn_ensemble
 
 
 def prepare_join_queries(schema, ensemble_location, pairwise_rdc_path, query_filename,
                          join_3_rdc_based=False, true_card_exist=False):
-    fspn_ensemble = load_ensemble(schema, ensemble_location)
+    bn_ensemble = load_ensemble(schema, ensemble_location)
     parsed_queries = []
-
-    with open(pairwise_rdc_path, 'rb') as handle:
-        rdc_attribute_dict = pickle.load(handle)
-
-    # schema = fspn_ensemble.schema_graph
+    
+    if pairwise_rdc_path:
+        with open(pairwise_rdc_path, 'rb') as handle:
+            rdc_attribute_dict = pickle.load(handle)
+    else:
+        rdc_attribute_dict = dict()
 
     true_card = []
     with open(query_filename) as f:
         queries = f.readlines()
         for query_no, query_str in enumerate(queries):
-            # print(query_no, query_str)
+            #print("=====================================================")
+            #print(query_no, query_str)
             if true_card_exist:
-                true_card.append(int(query_str.split("||")[-1]))
-                query_str = query_str.split("||")[0]
+                try:
+                    true_card.append(int(query_str.split("||")[-1]))
+                    query_str = query_str.split("||")[0]
+                except:
+                    true_card.append(int(query_str.split("||")[0]))
+                    query_str = query_str.split("||")[-1]
             query_str = query_str.strip()
 
             query = parse_query(query_str.strip(), schema)
 
-            first_fspn, next_mergeable_relationships, next_mergeable_tables = \
-                fspn_ensemble._greedily_select_first_cardinality_fspn(
+            first_bn, next_mergeable_relationships, next_mergeable_tables = \
+                bn_ensemble._greedily_select_first_cardinality_bn(
                     query, rdc_spn_selection=True, rdc_attribute_dict=rdc_attribute_dict)
 
-            factors = generate_factors(fspn_ensemble, query, first_fspn, next_mergeable_relationships,
+            factors = generate_factors(bn_ensemble, query, first_bn, next_mergeable_relationships,
                                        next_mergeable_tables, rdc_spn_selection=True,
                                        rdc_attribute_dict=rdc_attribute_dict, merge_indicator_exp=True,
                                        exploit_incoming_multipliers=True, prefer_disjunct=False)
@@ -310,7 +370,7 @@ def prepare_join_queries(schema, ensemble_location, pairwise_rdc_path, query_fil
 
                     actual_query, fanout = prepare_single_query(range_conditions, factor)
                     
-                    parse_result.append({"bn_index": factor.spn.relationship_set,
+                    parse_result.append({"bn_index": bn_ensemble.bns.index(factor.spn),
                                          "inverse": factor.inverse,
                                          "query": actual_query,
                                          "expectation": fanout,
@@ -320,6 +380,8 @@ def prepare_join_queries(schema, ensemble_location, pairwise_rdc_path, query_fil
                     raise NotImplementedError
                 else:
                     parse_result.append(factor)
+                    
+            #parse_result = further_refine(parse_result, bn_ensemble, query)
 
             parsed_queries.append(parse_result)
 

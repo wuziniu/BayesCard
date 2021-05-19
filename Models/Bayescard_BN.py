@@ -7,7 +7,7 @@ from collections import deque
 from Models.BN_single_model import BN_Single
 import itertools
 from DeepDBUtils.rspn.algorithms.ranges import NominalRange, NumericRange
-from Models.tools import MetaType
+from DataPrepare.StatisticalTypes import MetaType
 logger = logging.getLogger(__name__)
 
 
@@ -407,7 +407,6 @@ class Bayescard_BN(BN_Single):
         for relationship in self.relationship_set:
             if relationship not in query.relationship_set:
                 relationship_obj = self.schema_graph.relationship_dictionary[relationship]
-
                 # only queries directed to query have to be included
                 if depth_dict[relationship_obj.start] > depth_dict[relationship_obj.end]:
                     norm_multipliers.append((relationship_obj.end, relationship_obj.multiplier_attribute_name_nn))
@@ -921,6 +920,12 @@ class Bayescard_BN(BN_Single):
             if return_prob:
                 return (p_estimate, self.nrows)
             return p_estimate * self.nrows
+        
+        if len(query) == 0:
+            if return_prob:
+                return 1, self.nrows
+            else:
+                return self.nrows
 
         nrows = self.nrows
         if n_distinct is None:

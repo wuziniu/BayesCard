@@ -320,7 +320,7 @@ def parse_query(query_str, schema):
                     right_part = alias_dict[right.tokens[0].value] + '.' + right.tokens[2].value
                     assert comparison.tokens[operator_idx].value == '=', "Invalid join condition"
                     assert left_part + ' = ' + right_part in schema.relationship_dictionary.keys() or \
-                           right_part + ' = ' + left_part in schema.relationship_dictionary.keys(), "Relationship unknown"
+                           right_part + ' = ' + left_part in schema.relationship_dictionary.keys(), f"Relationship unknown{right_part + ' = ' + left_part}"
                     if left_part + ' = ' + right_part in schema.relationship_dictionary.keys():
                         query.add_join_condition(left_part + ' = ' + right_part)
                     elif right_part + ' = ' + left_part in schema.relationship_dictionary.keys():

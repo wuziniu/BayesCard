@@ -1,0 +1,34 @@
+2021-05-18 17:52:43,137 [INFO ]  Generating HDF files for tables in /home/ziniu.wzn/AttEst_support/DB0 and store to path /home/ziniu.wzn/AttEst_support/DB0/gen_hdf
+2021-05-18 17:52:43,137 [INFO ]  Removing target path /home/ziniu.wzn/AttEst_support/DB0/gen_hdf
+2021-05-18 17:52:43,137 [INFO ]  Making target path /home/ziniu.wzn/AttEst_support/DB0/gen_hdf
+2021-05-18 17:52:43,137 [INFO ]  Preparing hdf file for table table0
+2021-05-18 17:52:43,178 [INFO ]  Managing functional dependencies for table table0
+2021-05-18 17:52:43,181 [INFO ]  Preparing multipliers for table table0
+2021-05-18 17:52:43,181 [INFO ]  Preparing multiplier table5.table0Id = table0.Id for table table0
+2021-05-18 17:52:43,465 [INFO ]  Preparing multiplier table2.table0Id = table0.Id for table table0
+2021-05-18 17:52:43,567 [INFO ]  Preparing multiplier table4.table0Id = table0.Id for table table0
+2021-05-18 17:52:43,991 [INFO ]  Preparing multiplier table3.table0Id = table0.Id for table table0
+2021-05-18 17:52:44,570 [INFO ]  Preparing multiplier table1.table0Id = table0.Id for table table0
+2021-05-18 17:52:44,748 [INFO ]  Preparing categorical values and null values for table table0
+2021-05-18 17:52:44,748 [DEBUG]  		Preparing numerical values for column Id
+2021-05-18 17:52:44,751 [DEBUG]  		Preparing numerical values for column attr0
+2021-05-18 17:52:44,752 [DEBUG]  		Preparing numerical values for column attr1
+2021-05-18 17:52:44,754 [DEBUG]  		Preparing numerical values for column attr2
+2021-05-18 17:52:44,756 [DEBUG]  		Preparing numerical values for column attr3
+2021-05-18 17:52:44,757 [DEBUG]  		Preparing numerical values for column attr4
+2021-05-18 17:52:44,759 [DEBUG]  		Preparing numerical values for column attr5
+2021-05-18 17:52:44,761 [DEBUG]  		Preparing numerical values for column attr6
+2021-05-18 17:52:44,762 [DEBUG]  		Preparing numerical values for column mul_table5.table0Id
+2021-05-18 17:52:44,764 [DEBUG]  		Preparing numerical values for column mul_table5.table0Id_nn
+2021-05-18 17:52:44,766 [DEBUG]  		Preparing numerical values for column mul_table2.table0Id
+2021-05-18 17:52:44,768 [DEBUG]  		Preparing numerical values for column mul_table2.table0Id_nn
+2021-05-18 17:52:44,770 [DEBUG]  		Preparing numerical values for column mul_table4.table0Id
+2021-05-18 17:52:44,772 [DEBUG]  		Preparing numerical values for column mul_table4.table0Id_nn
+2021-05-18 17:52:44,774 [DEBUG]  		Preparing numerical values for column mul_table3.table0Id
+2021-05-18 17:52:44,775 [DEBUG]  		Preparing numerical values for column mul_table3.table0Id_nn
+2021-05-18 17:52:44,777 [DEBUG]  		Preparing numerical values for column mul_table1.table0Id
+2021-05-18 17:52:44,779 [DEBUG]  		Preparing numerical values for column mul_table1.table0Id_nn
+2021-05-18 17:52:44,781 [INFO ]  Relevant attributes for table table0 are ['Id', 'attr0', 'attr1', 'attr2', 'attr3', 'attr4', 'attr5', 'attr6', 'mul_table5.table0Id', 'mul_table5.table0Id_nn', 'mul_table2.table0Id', 'mul_table2.table0Id_nn', 'mul_table4.table0Id', 'mul_table4.table0Id_nn', 'mul_table3.table0Id', 'mul_table3.table0Id_nn', 'mul_table1.table0Id', 'mul_table1.table0Id_nn']
+2021-05-18 17:52:44,781 [INFO ]  NULL values for table table0 are [-128037.39982721637, -100084.07883527588, -87026451.76027359, -100008.90973422195, -100006.58755195288, -100000.26100514569, -100009.24746515809, -100008.99685139491, -100003.73545027898, -100004.41106094234, -100002.75360278983, -100002.87268524489, -100006.93731016738, -100007.38951103533, -100001.86293942963, -100001.86293942963, -100002.2464484191, -100002.70130272783]
+2021-05-18 17:52:45,012 [INFO ]  Adding table parts without join partners for table table0
+2021-05-18 17:52:45,012 [INFO ]  Adding table parts without join partners for table table0 and relationship table5.table0Id = table0.Id
