@@ -355,7 +355,7 @@ def prepare_join_queries(schema, ensemble_location, pairwise_rdc_path, query_fil
                     query, rdc_spn_selection=True, rdc_attribute_dict=rdc_attribute_dict)
 
             factors = generate_factors(bn_ensemble, query, first_bn, next_mergeable_relationships,
-                                       next_mergeable_tables, rdc_spn_selection=True,
+                                       next_mergeable_tables, rdc_bn_selection=True,
                                        rdc_attribute_dict=rdc_attribute_dict, merge_indicator_exp=True,
                                        exploit_incoming_multipliers=True, prefer_disjunct=False)
 
