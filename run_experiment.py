@@ -66,7 +66,9 @@ if __name__ == '__main__':
     logger = logging.getLogger(__name__)
 
     #dealing with imdb job
+    print(args.dataset)
     if args.dataset == 'imdb' or args.dataset == 'DB0':
+        print(args.dataset)
         table_csv_path = args.csv_path + '/'
         if args.dataset == 'imdb':
             schema = gen_job_light_imdb_schema(table_csv_path)

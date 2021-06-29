@@ -732,7 +732,6 @@ class Bayescard_BN(BN_Single):
                     start_point_left -= 1
                 else:
                     indicator_left = False
-
             if indicator_right:
                 cover = cal_coverage(left, right, self.mapping[col][start_point_right])
                 if cover != 0:

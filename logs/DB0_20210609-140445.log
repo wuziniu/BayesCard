@@ -1,0 +1,6 @@
+2021-06-09 14:04:45,360 [INFO ]  Generating HDF files for tables in /Users/ziniuwu/Desktop/research/dataset/DB0/ and store to path /Users/ziniuwu/Desktop/research/dataset/DB0/gen_hdf
+2021-06-09 14:04:45,360 [INFO ]  Making target path /Users/ziniuwu/Desktop/research/dataset/DB0/gen_hdf
+2021-06-09 14:04:45,361 [INFO ]  Preparing hdf file for table table0
+2021-06-09 14:04:45,393 [INFO ]  Managing functional dependencies for table table0
+2021-06-09 14:04:45,394 [INFO ]  Preparing multipliers for table table0
+2021-06-09 14:04:45,394 [INFO ]  Preparing multiplier table5.table0Id = table0.Id for table table0
