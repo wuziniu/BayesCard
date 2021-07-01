@@ -110,17 +110,4 @@ The optimal trained models for each dataset are already stored. If you are only 
           --max_parents 1
           --infer_algo exact-jit
    ```
-   
-   # Paper Citation
-   If you find the code useful, please cite our paper:
-   ```
-   @misc{wu2021bayescard,
-      title={BayesCard: Revitilizing Bayesian Frameworks for Cardinality Estimation}, 
-      author={Ziniu Wu and Amir Shaikhha and Rong Zhu and Kai Zeng and Yuxing Han and Jingren Zhou},
-      year={2021},
-      eprint={2012.14743},
-      archivePrefix={arXiv},
-      primaryClass={cs.DB}
-   }
-   ```
-
+  
