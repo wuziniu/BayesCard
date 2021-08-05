@@ -6,7 +6,7 @@ import shutil
 import numpy as np
 import pandas as pd
 import sys
-sys.path.append('/home/ziniu.wzn/BayesCard')
+sys.path.append('/Users/ziniuw/Desktop/BayesCard')
 from DataPrepare.join_data_preparation import prepare_sample_hdf
 from DataPrepare.prepare_single_tables import prepare_all_tables
 from Schemas.imdb.schema import gen_job_light_imdb_schema
@@ -23,7 +23,7 @@ if __name__ == '__main__':
     # the preprocessing uses the code from deepdb-public
     parser.add_argument('--generate_hdf', help='Prepare hdf5 files for single tables', action='store_true')
     parser.add_argument('--generate_sampled_hdfs', help='Prepare hdf5 files for single tables', action='store_true')
-    parser.add_argument('--csv_seperator', default='|')
+    parser.add_argument('--csv_seperator', default=',')
     parser.add_argument('--csv_path', default='../imdb-benchmark')
     parser.add_argument('--hdf_path', default='../imdb-benchmark/gen_hdf')
     parser.add_argument('--max_rows_per_hdf_file', type=int, default=20000000)

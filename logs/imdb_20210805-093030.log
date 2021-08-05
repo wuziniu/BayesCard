@@ -1,0 +1,2 @@
+2021-08-05 09:30:30,499 [DEBUG]  generate_join_sample(single_table=None, relationship_list=['movie_info_idx.movie_id = title.id'], split_condition=None)
+2021-08-05 09:30:30,499 [DEBUG]  reading first table 'title'

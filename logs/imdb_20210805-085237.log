@@ -1,0 +1,4 @@
+2021-08-05 08:52:37,753 [INFO ]  Generating HDF files for tables in /Users/ziniuw/Desktop/research/dataset/imdb and store to path ../imdb-benchmark/gen_hdf
+2021-08-05 08:52:37,753 [INFO ]  Removing target path ../imdb-benchmark/gen_hdf
+2021-08-05 08:52:37,753 [INFO ]  Making target path ../imdb-benchmark/gen_hdf
+2021-08-05 08:52:37,753 [INFO ]  Preparing hdf file for table title

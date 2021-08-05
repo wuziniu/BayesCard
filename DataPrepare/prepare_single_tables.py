@@ -8,7 +8,7 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 
-def read_table_csv(table_obj, csv_seperator=','):
+def read_table_csv(table_obj, csv_seperator=","):
     """
     Reads csv from path, renames columns and drops unnecessary columns
     """
@@ -36,7 +36,7 @@ def find_relationships(schema_graph, table, incoming=True):
     return relationships
 
 
-def prepare_single_table(schema_graph, table, path, max_distinct_vals=10000, csv_seperator=',',
+def prepare_single_table(schema_graph, table, path, max_distinct_vals=10000, csv_seperator=",",
                          max_table_data=20000000):
     """
     Reads table csv. Adds multiplier fields, missing value imputation, dict for categorical data. Adds null tuple tables.

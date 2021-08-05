@@ -149,8 +149,8 @@ class JoinDataPreparator:
         if self.cached_tables.get(path) is not None:
             return self.cached_tables[path]
 
-        hdf_name = path.split("/")[-1]
-        path = "/home/ziniu.wzn/imdb-benchmark/gen_single_light/" + hdf_name
+        #hdf_name = path.split("/")[-1]
+        #path += hdf_name
         table_data = pd.read_hdf(path, key='df')
 
         # drop irrelevant attributes
@@ -428,6 +428,7 @@ class JoinDataPreparator:
 
             # sample from first first table
             logging.debug(f"reading first table '{start_table}'")
+            print(self.table_meta_data[start_table]['hdf_path'])
             df_samples = self._get_table_data(self.table_meta_data[start_table]['hdf_path'], start_table)
             if sample_rate < 1:
                 df_samples = df_samples.sample(prob_round(len(df_samples) * sample_rate))

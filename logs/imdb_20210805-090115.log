@@ -1,0 +1,7 @@
+2021-08-05 09:01:15,131 [INFO ]  Generating HDF files for tables in /Users/ziniuw/Desktop/research/dataset/imdb and store to path ../imdb-benchmark/gen_hdf
+2021-08-05 09:01:15,131 [INFO ]  Removing target path ../imdb-benchmark/gen_hdf
+2021-08-05 09:01:15,132 [INFO ]  Making target path ../imdb-benchmark/gen_hdf
+2021-08-05 09:01:15,132 [INFO ]  Preparing hdf file for table title
+2021-08-05 09:01:19,271 [INFO ]  Managing functional dependencies for table title
+2021-08-05 09:01:19,275 [INFO ]  Preparing multipliers for table title
+2021-08-05 09:01:19,276 [INFO ]  Preparing multiplier movie_info_idx.movie_id = title.id for table title

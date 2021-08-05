@@ -1,0 +1,26 @@
+2021-08-05 09:04:05,044 [INFO ]  Generating HDF files for tables in /Users/ziniuw/Desktop/research/dataset/imdb and store to path imdb-benchmark/gen_hdf
+2021-08-05 09:04:05,044 [INFO ]  Making target path imdb-benchmark/gen_hdf
+2021-08-05 09:04:05,045 [INFO ]  Preparing hdf file for table title
+2021-08-05 09:04:09,454 [INFO ]  Managing functional dependencies for table title
+2021-08-05 09:04:09,457 [INFO ]  Preparing multipliers for table title
+2021-08-05 09:04:09,458 [INFO ]  Preparing multiplier movie_info_idx.movie_id = title.id for table title
+2021-08-05 09:04:11,624 [INFO ]  Preparing multiplier movie_info.movie_id = title.id for table title
+2021-08-05 09:04:26,748 [INFO ]  Preparing multiplier cast_info.movie_id = title.id for table title
+2021-08-05 09:04:57,947 [INFO ]  Preparing multiplier movie_keyword.movie_id = title.id for table title
+2021-08-05 09:05:01,124 [INFO ]  Preparing multiplier movie_companies.movie_id = title.id for table title
+2021-08-05 09:05:04,038 [INFO ]  Preparing categorical values and null values for table title
+2021-08-05 09:05:04,039 [DEBUG]  		Preparing numerical values for column id
+2021-08-05 09:05:04,047 [DEBUG]  		Preparing numerical values for column kind_id
+2021-08-05 09:05:04,055 [DEBUG]  		Preparing numerical values for column production_year
+2021-08-05 09:05:04,072 [DEBUG]  		Preparing numerical values for column mul_movie_info_idx.movie_id
+2021-08-05 09:05:04,084 [DEBUG]  		Preparing numerical values for column mul_movie_info_idx.movie_id_nn
+2021-08-05 09:05:04,096 [DEBUG]  		Preparing numerical values for column mul_movie_info.movie_id
+2021-08-05 09:05:04,108 [DEBUG]  		Preparing numerical values for column mul_movie_info.movie_id_nn
+2021-08-05 09:05:04,120 [DEBUG]  		Preparing numerical values for column mul_cast_info.movie_id
+2021-08-05 09:05:04,132 [DEBUG]  		Preparing numerical values for column mul_cast_info.movie_id_nn
+2021-08-05 09:05:04,144 [DEBUG]  		Preparing numerical values for column mul_movie_keyword.movie_id
+2021-08-05 09:05:04,157 [DEBUG]  		Preparing numerical values for column mul_movie_keyword.movie_id_nn
+2021-08-05 09:05:04,169 [DEBUG]  		Preparing numerical values for column mul_movie_companies.movie_id
+2021-08-05 09:05:04,181 [DEBUG]  		Preparing numerical values for column mul_movie_companies.movie_id_nn
+2021-08-05 09:05:04,193 [INFO ]  Relevant attributes for table title are ['id', 'kind_id', 'production_year', 'mul_movie_info_idx.movie_id', 'mul_movie_info_idx.movie_id_nn', 'mul_movie_info.movie_id', 'mul_movie_info.movie_id_nn', 'mul_cast_info.movie_id', 'mul_cast_info.movie_id_nn', 'mul_movie_keyword.movie_id', 'mul_movie_keyword.movie_id_nn', 'mul_movie_companies.movie_id', 'mul_movie_companies.movie_id_nn']
+2021-08-05 09:05:04,194 [INFO ]  NULL values for table title are [1264156.5001, 4.943925366489578, 1992.7887619952553, 0.5459325554757483, 1.3640226487870168, 5.867935931641348, 5.89146427782647, 14.33549215096871, 14.413295444233148, 1.7894084397811663, 2.600826492616418, 1.032064804976601, 1.6020403459699595]
