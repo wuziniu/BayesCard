@@ -6,7 +6,7 @@
   conda env create -f environment.yml
   ```
   If not, you need to manually download the following packages
-  Required dependence: numpy, scipy, pandas, Pgmpy, pomegranate, networkx, tqdm, joblib, pytorch, psycopg2, scikit-learn, 
+  Required dependence: numpy, scipy, pandas, Pgmpy, pomegranate, networkx, tqdm, joblib, pytorch, psycopg2, scikit-learn, spflow, tables
   Additional dependence: numba, bz2, Pyro (These packages are not required to reproduce the result in the paper.)
   
 ## Dataset download:
@@ -82,14 +82,6 @@ The optimal trained models for each dataset are already stored. If you are only 
           --csv_path ../imdb-benchmark
           --hdf_path ../imdb-benchmark/gen_hdf
    ```
-   Preparing a sample of hdf joins
-   ```
-   python run_experiment.py --dataset imdb 
-          --generate_sampled_hdfs
-          --csv_path ../imdb-benchmark
-          --hdf_path ../imdb-benchmark/gen_hdf
-          --hdf_sample_size 100000
-   ```
    Then train a Bayescard ensemble of BNs
    ```
    python run_experiment.py --dataset imdb 
@@ -109,5 +101,14 @@ The optimal trained models for each dataset are already stored. If you are only 
           --learning_algo chow-liu
           --max_parents 1
           --infer_algo exact-jit
+   ```
+   If you find the code helpful, please cite our paper:
+   ```
+   @article{wu2020bayescard,
+    title={BayesCard: Revitilizing Bayesian Frameworks for Cardinality Estimation},
+    author={Wu, Ziniu and Shaikhha, Amir and Zhu, Rong and Zeng, Kai and Han, Yuxing and Zhou, Jingren},
+    journal={arXiv preprint arXiv:2012.14743},
+    year={2020}
+    }
    ```
   
