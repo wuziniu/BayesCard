@@ -7,6 +7,7 @@
   ```
   If not, you need to manually download the following packages
   Required dependence: numpy, scipy, pandas, Pgmpy, pomegranate, networkx, tqdm, joblib, pytorch, psycopg2, scikit-learn, spflow, tables
+  
   Additional dependence: numba, bz2, Pyro (These packages are not required to reproduce the result in the paper.)
   
 ## Dataset download:
