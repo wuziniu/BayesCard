@@ -82,14 +82,6 @@ The optimal trained models for each dataset are already stored. If you are only 
           --csv_path ../imdb-benchmark
           --hdf_path ../imdb-benchmark/gen_hdf
    ```
-   Preparing a sample of hdf joins
-   ```
-   python run_experiment.py --dataset imdb 
-          --generate_sampled_hdfs
-          --csv_path ../imdb-benchmark
-          --hdf_path ../imdb-benchmark/gen_hdf
-          --hdf_sample_size 100000
-   ```
    Then train a Bayescard ensemble of BNs
    ```
    python run_experiment.py --dataset imdb 
