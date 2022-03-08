@@ -8,9 +8,9 @@ import numpy as np
 from spn.algorithms.StructureLearning import default_slicer
 from spn.structure.Base import assign_ids, Product
 
-from rspn.algorithms.transform_structure import Prune
-from rspn.algorithms.validity.validity import is_valid
-from rspn.structure.base import Sum
+from DeepDBUtils.rspn.algorithms.transform_structure import Prune
+from DeepDBUtils.rspn.algorithms.validity.validity import is_valid
+from DeepDBUtils.rspn.structure.base import Sum
 
 logger = logging.getLogger(__name__)
 

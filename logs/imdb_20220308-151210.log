@@ -1,0 +1,11 @@
+2022-03-08 15:12:10,090 [DEBUG]  generate_join_sample(single_table=None, relationship_list=['movie_info_idx.movie_id = title.id'], split_condition=None)
+2022-03-08 15:12:10,090 [DEBUG]  reading first table 'title'
+2022-03-08 15:12:10,119 [INFO ]  Note: NumExpr detected 20 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 8.
+2022-03-08 15:12:11,871 [DEBUG]  Joining movie_info_idx.movie_id = title.id. Current join size is 2528312.
+2022-03-08 15:12:13,648 [DEBUG]  Final join size is 3448422.
+2022-03-08 15:12:30,028 [INFO ]  Discretizing table takes 16.180293321609497 secs
+2022-03-08 15:12:30,028 [INFO ]  Learning BN optimal structure from data with 3448422.0 rows and 9 cols
+2022-03-08 15:12:57,811 [INFO ]  Structure learning took 27.783207893371582 secs.
+2022-03-08 15:12:57,815 [INFO ]  Model spec[('title.mul_movie_info.movie_id', 'title.production_year'), ('title.mul_movie_info.movie_id', 'title.mul_movie_info_idx.movie_id_nn'), ('title.kind_id', 'title.mul_movie_info.movie_id'), ('title.mul_movie_info.movie_id', 'title.mul_cast_info.movie_id'), ('title.mul_movie_info.movie_id', 'title.mul_movie_keyword.movie_id'), ('title.mul_movie_info.movie_id', 'title.mul_movie_companies.movie_id'), ('title.mul_movie_info_idx.movie_id_nn', 'movie_info_idx.movie_info_idx_nn'), ('title.mul_movie_info_idx.movie_id_nn', 'movie_info_idx.info_type_id')]
+2022-03-08 15:12:57,815 [INFO ]  calling pgm.BayesianModel.fit...
+2022-03-08 15:13:01,452 [INFO ]  done, took 3.6373376846313477 secs.

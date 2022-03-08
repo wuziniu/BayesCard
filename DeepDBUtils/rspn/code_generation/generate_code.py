@@ -8,8 +8,8 @@ from spn.structure.StatisticalTypes import MetaType
 
 import os
 
-from rspn.structure.base import Sum
-from rspn.structure.leaves import Categorical, IdentityNumericLeaf
+from DeepDBUtils.rspn.structure.base import Sum
+from DeepDBUtils.rspn.structure.leaves import Categorical, IdentityNumericLeaf
 
 logger = logging.getLogger(__name__)
 

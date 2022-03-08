@@ -6,13 +6,13 @@ import shutil
 import numpy as np
 import pandas as pd
 import sys
-sys.path.append('/home/ziniu.wzn/BayesCard')
+sys.path.append('/home/ubuntu/BayesCard')
 from DataPrepare.join_data_preparation import prepare_sample_hdf
 from DataPrepare.prepare_single_tables import prepare_all_tables
 from Schemas.imdb.schema import gen_job_light_imdb_schema
 from DataPrepare.schemas import gen_DB0_schema
-#from Testing.BN_training import train_DMV, train_Census, train_imdb
-#from Testing.BN_testing import evaluate_cardinality_single_table, evaluate_cardinality_imdb
+from Testing.BN_training import train_DMV, train_Census, train_imdb
+from Testing.BN_testing import evaluate_cardinality_single_table, evaluate_cardinality_imdb
 
 
 if __name__ == '__main__':
@@ -24,7 +24,7 @@ if __name__ == '__main__':
     # the preprocessing uses the code from deepdb-public
     parser.add_argument('--generate_hdf', help='Prepare hdf5 files for single tables', action='store_true')
     parser.add_argument('--generate_sampled_hdfs', help='Prepare hdf5 files for single tables', action='store_true')
-    parser.add_argument('--csv_seperator', default='|')
+    parser.add_argument('--csv_seperator', default=',')
     parser.add_argument('--csv_path', default='../imdb-benchmark')
     parser.add_argument('--hdf_path', default='../imdb-benchmark/gen_hdf')
     parser.add_argument('--max_rows_per_hdf_file', type=int, default=20000000)
@@ -69,7 +69,7 @@ if __name__ == '__main__':
     print(args.dataset)
     if args.dataset == 'imdb' or args.dataset == 'DB0':
         print(args.dataset)
-        table_csv_path = args.csv_path + '/'
+        table_csv_path = args.csv_path + '/{}.csv'
         if args.dataset == 'imdb':
             schema = gen_job_light_imdb_schema(table_csv_path)
         else:
@@ -100,6 +100,7 @@ if __name__ == '__main__':
             if not os.path.exists(args.model_path):
                 os.makedirs(args.model_path)
             if args.dataset == 'imdb':
+                print(schema)
                 train_imdb(schema, args.hdf_path, args.model_path, args.learning_algo, args.max_parents, args.sample_size)
             
 

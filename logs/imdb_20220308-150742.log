@@ -1,0 +1,5 @@
+2022-03-08 15:07:42,013 [DEBUG]  generate_join_sample(single_table=None, relationship_list=['movie_info_idx.movie_id = title.id'], split_condition=None)
+2022-03-08 15:07:42,014 [DEBUG]  reading first table 'title'
+2022-03-08 15:07:42,038 [INFO ]  Note: NumExpr detected 20 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 8.
+2022-03-08 15:07:44,853 [DEBUG]  Joining movie_info_idx.movie_id = title.id. Current join size is 2528312.
+2022-03-08 15:07:46,808 [DEBUG]  Final join size is 3448422.

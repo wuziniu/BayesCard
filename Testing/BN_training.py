@@ -42,11 +42,15 @@ def train_imdb(schema, hdf_path, model_folder, algorithm, max_parents, sample_si
     for i, relationship_obj in enumerate(schema.relationships):
         print("training on relationship_obj.identifier")
         df_sample_size = 10000000
-        relation = relationship_obj.identifier
+        relation = [relationship_obj.identifier]
         df, meta_types, null_values, full_join_est = prep.generate_n_samples(
-            df_sample_size, relationship_list=[relation], post_sampling_factor=10)
+            df_sample_size, relationship_list=relation, post_sampling_factor=10)
+        columns = list(df.columns)
+        assert len(columns) == len(meta_types) == len(null_values)
         meta_info = build_meta_info(df.columns, null_values)
-        bn = Bayescard_BN(relation, meta_info, full_join_est)
+        bn = Bayescard_BN(schema, relation, column_names=columns, full_join_size=full_join_est,
+                      table_meta_data=prep.table_meta_data, meta_types=meta_types, null_values=null_values,
+                      meta_info=meta_info)
         model_path = model_folder + f"/{i}_{algorithm}_{max_parents}.pkl"
         bn.build_from_data(df, algorithm=algorithm, max_parents=max_parents, ignore_cols=['id'],
                            sample_size=sample_size)

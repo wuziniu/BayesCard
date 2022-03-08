@@ -96,7 +96,7 @@ The optimal trained models for each dataset are already stored. If you are only 
    ```
    python run_experiment.py --dataset imdb 
           --evaluate_cardinalities
-          --model_path Benchmark/IMDB
+          --model_path Benchmark/IMDB/
           --query_file_location Benchmark/IMDB/job-light.sql
           --learning_algo chow-liu
           --max_parents 1

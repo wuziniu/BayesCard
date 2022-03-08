@@ -1,0 +1,4 @@
+2022-03-08 14:29:35,765 [INFO ]  Generating HDF files for tables in /home/ubuntu/data_CE/imdb and store to path /home/ubuntu/data_CE/imdb/gen_hdf
+2022-03-08 14:29:35,766 [INFO ]  Removing target path /home/ubuntu/data_CE/imdb/gen_hdf
+2022-03-08 14:29:35,766 [INFO ]  Making target path /home/ubuntu/data_CE/imdb/gen_hdf
+2022-03-08 14:29:35,767 [INFO ]  Preparing hdf file for table title

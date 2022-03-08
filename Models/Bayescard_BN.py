@@ -1142,12 +1142,12 @@ class Bayescard_BN(BN_Single):
         for col in attr_names:
             if self.attr_type[col] == "boolean":
                 assert self.mapping[col] is None or len(
-                    self.mapping[col] == 0), f"mapping is for continuous values only"
+                    self.mapping[col]) == 0, f"mapping is for continuous values only"
                 assert self.n_in_bin[col] is None or len(
-                    self.n_in_bin[col] == 0), f"n_in_bin is for categorical values only"
+                    self.n_in_bin[col]) == 0, f"n_in_bin is for categorical values only"
             elif self.attr_type[col] == "categorical":
                 assert self.mapping[col] is None or len(
-                    self.mapping[col] == 0), f"mapping is for continuous values only"
+                    self.mapping[col]) == 0, f"mapping is for continuous values only"
                 reverse_encoding = dict()
                 for k in self.encoding[col]:
                     enc = self.encoding[col][k]

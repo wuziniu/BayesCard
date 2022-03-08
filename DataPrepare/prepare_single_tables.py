@@ -21,16 +21,20 @@ def read_table_hdf(table_obj, csv_seperator=','):
     return df_rows.apply(pd.to_numeric, errors="ignore")
 
 
-def read_table_csv(table_obj, csv_seperator=',', stats=True):
+def read_table_csv(table_obj, csv_seperator=',', stats=False):
     """
     Reads csv from path, renames columns and drops unnecessary columns
+    Set stats to True for stats dataset
     """
     if stats:
         df_rows = pd.read_csv(table_obj.csv_file_location)
     else:
+        #print(table_obj.csv_file_location)
         df_rows = pd.read_csv(table_obj.csv_file_location, header=None, escapechar='\\', encoding='utf-8',
                               quotechar='"',
                               sep=csv_seperator)
+    #print(df_rows.head(5))
+    #print(len(df_rows.columns), len(table_obj.attributes))
     df_rows.columns = [table_obj.table_name + '.' + attr for attr in table_obj.attributes]
 
     for attribute in table_obj.irrelevant_attributes:
