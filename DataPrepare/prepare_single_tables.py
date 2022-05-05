@@ -39,7 +39,8 @@ def read_table_csv(table_obj, csv_seperator=',', stats=False):
 
     for attribute in table_obj.irrelevant_attributes:
         df_rows = df_rows.drop(table_obj.table_name + '.' + attribute, axis=1)
-
+    print("!!!!!!!!!!!!!!!!!!!!!!!!!")
+    print(df_rows.columns)
     return df_rows.apply(pd.to_numeric, errors="ignore")
     # return df_rows.convert_objects()
 
@@ -57,7 +58,7 @@ def find_relationships(schema_graph, table, incoming=True):
     return relationships
 
 
-def prepare_single_table(schema_graph, table, path, max_distinct_vals=10000, csv_seperator=',',
+def prepare_single_table(schema_graph, table, path, max_distinct_vals=1000000, csv_seperator=',',
                          max_table_data=20000000):
     """
     Reads table csv. Adds multiplier fields, missing value imputation, dict for categorical data. Adds null tuple tables.
@@ -224,6 +225,8 @@ def prepare_single_table(schema_graph, table, path, max_distinct_vals=10000, csv
     logger.info("Relevant attributes for table {} are {}".format(table, relevant_attributes))
     logger.info("NULL values for table {} are {}".format(table, table_meta_data['null_values_column']))
     del_cat_attributes = [table + '.' + rel_attribute for rel_attribute in del_cat_attributes]
+    print("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+    print(del_cat_attributes, table_data.columns)
     table_data = table_data.drop(columns=del_cat_attributes)
 
     assert len(relevant_attributes) == len(table_meta_data['null_values_column']), \
@@ -237,7 +240,7 @@ def prepare_single_table(schema_graph, table, path, max_distinct_vals=10000, csv
     # save modified table
     if len(table_data) < max_table_data:
         # table_data.to_hdf(path, key='df')
-        table_data.to_hdf(path, key='df', format='table')
+        table_data.to_hdf(path, key='df')#, format='table')
     else:
         table_data.sample(max_table_data).to_hdf(path, key='df', format='table')
 
@@ -253,7 +256,9 @@ def prepare_single_table(schema_graph, table, path, max_distinct_vals=10000, csv
 
         left_attribute = table + '.' + relationship_obj.end_attr
         right_attribute = neighbor_table + '.' + relationship_obj.start_attr
-
+        
+        print("====================================")
+        print(table_data.columns, left_attribute)
         table_data = table_data.set_index(left_attribute, drop=False)
         neighbor_table_data = read_table_csv(neighbor_table_obj, csv_seperator=csv_seperator).set_index(right_attribute,
                                                                                                         drop=False)

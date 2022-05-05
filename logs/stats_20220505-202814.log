@@ -1,0 +1,80 @@
+2022-05-05 20:28:14,049 [INFO ]  Generating HDF files for tables in /home/ubuntu/End-to-End-CardEst-Benchmark/datasets/stats_simplified and store to path /home/ubuntu/End-to-End-CardEst-Benchmark/datasets/stats_simplified/gen_hdf
+2022-05-05 20:28:14,050 [INFO ]  Removing target path /home/ubuntu/End-to-End-CardEst-Benchmark/datasets/stats_simplified/gen_hdf
+2022-05-05 20:28:14,060 [INFO ]  Making target path /home/ubuntu/End-to-End-CardEst-Benchmark/datasets/stats_simplified/gen_hdf
+2022-05-05 20:28:14,060 [INFO ]  Preparing hdf file for table badges
+2022-05-05 20:28:14,150 [INFO ]  Managing functional dependencies for table badges
+2022-05-05 20:28:14,152 [INFO ]  Preparing multipliers for table badges
+2022-05-05 20:28:14,155 [INFO ]  Preparing categorical values and null values for table badges
+2022-05-05 20:28:14,155 [DEBUG]  		Preparing categorical values for column UserId
+2022-05-05 20:28:14,160 [INFO ]  Ignoring column UserId for table badges because there are too many categorical values
+2022-05-05 20:28:14,160 [DEBUG]  		Preparing categorical values for column Date
+2022-05-05 20:28:14,167 [INFO ]  Ignoring column Date for table badges because there are too many categorical values
+2022-05-05 20:28:14,167 [INFO ]  Relevant attributes for table badges are []
+2022-05-05 20:28:14,167 [INFO ]  NULL values for table badges are []
+2022-05-05 20:28:14,183 [INFO ]  Note: NumExpr detected 20 cores but "NUMEXPR_MAX_THREADS" not set, so enforcing safe limit of 8.
+2022-05-05 20:28:14,205 [INFO ]  Adding table parts without join partners for table badges
+2022-05-05 20:28:14,206 [INFO ]  Preparing hdf file for table votes
+2022-05-05 20:28:14,576 [INFO ]  Managing functional dependencies for table votes
+2022-05-05 20:28:14,601 [INFO ]  Preparing multipliers for table votes
+2022-05-05 20:28:14,622 [INFO ]  Preparing categorical values and null values for table votes
+2022-05-05 20:28:14,622 [DEBUG]  		Preparing categorical values for column PostId
+2022-05-05 20:28:14,643 [INFO ]  Ignoring column PostId for table votes because there are too many categorical values
+2022-05-05 20:28:14,643 [DEBUG]  		Preparing categorical values for column VoteTypeId
+2022-05-05 20:28:14,758 [DEBUG]  		Preparing categorical values for column CreationDate
+2022-05-05 20:28:14,868 [DEBUG]  		Preparing categorical values for column UserId
+2022-05-05 20:28:14,960 [DEBUG]  		Preparing categorical values for column BountyAmount
+2022-05-05 20:28:15,043 [INFO ]  Relevant attributes for table votes are ['VoteTypeId', 'CreationDate', 'UserId', 'BountyAmount']
+2022-05-05 20:28:15,043 [INFO ]  NULL values for table votes are [0, 0, 0, 0]
+2022-05-05 20:28:15,077 [INFO ]  Adding table parts without join partners for table votes
+2022-05-05 20:28:15,080 [INFO ]  Preparing hdf file for table postHistory
+2022-05-05 20:28:15,386 [INFO ]  Managing functional dependencies for table postHistory
+2022-05-05 20:28:15,397 [INFO ]  Preparing multipliers for table postHistory
+2022-05-05 20:28:15,416 [INFO ]  Preparing categorical values and null values for table postHistory
+2022-05-05 20:28:15,417 [DEBUG]  		Preparing categorical values for column PostHistoryTypeId
+2022-05-05 20:28:15,521 [DEBUG]  		Preparing categorical values for column PostId
+2022-05-05 20:28:15,538 [INFO ]  Ignoring column PostId for table postHistory because there are too many categorical values
+2022-05-05 20:28:15,538 [DEBUG]  		Preparing categorical values for column CreationDate
+2022-05-05 20:28:15,568 [INFO ]  Ignoring column CreationDate for table postHistory because there are too many categorical values
+2022-05-05 20:28:15,568 [DEBUG]  		Preparing categorical values for column UserId
+2022-05-05 20:28:15,587 [INFO ]  Ignoring column UserId for table postHistory because there are too many categorical values
+2022-05-05 20:28:15,587 [INFO ]  Relevant attributes for table postHistory are ['PostHistoryTypeId']
+2022-05-05 20:28:15,587 [INFO ]  NULL values for table postHistory are [0]
+2022-05-05 20:28:15,610 [INFO ]  Adding table parts without join partners for table postHistory
+2022-05-05 20:28:15,611 [INFO ]  Preparing hdf file for table posts
+2022-05-05 20:28:15,773 [INFO ]  Managing functional dependencies for table posts
+2022-05-05 20:28:15,780 [INFO ]  Preparing multipliers for table posts
+2022-05-05 20:28:15,780 [INFO ]  Preparing multiplier comments.PostId = posts.Id for table posts
+2022-05-05 20:28:16,482 [INFO ]  Preparing multiplier tags.ExcerptPostId = posts.Id for table posts
+2022-05-05 20:28:16,755 [INFO ]  Preparing multiplier postLinks.PostId = posts.Id for table posts
+2022-05-05 20:28:17,056 [INFO ]  Preparing multiplier postLinks.RelatedPostId = posts.Id for table posts
+2022-05-05 20:28:17,351 [INFO ]  Preparing multiplier postHistory.PostId = posts.Id for table posts
+2022-05-05 20:28:18,157 [INFO ]  Preparing multiplier votes.PostId = posts.Id for table posts
+2022-05-05 20:28:18,975 [INFO ]  Preparing categorical values and null values for table posts
+2022-05-05 20:28:18,975 [DEBUG]  		Preparing categorical values for column Id
+2022-05-05 20:28:18,986 [INFO ]  Ignoring column Id for table posts because there are too many categorical values
+2022-05-05 20:28:18,986 [DEBUG]  		Preparing categorical values for column PostTypeId
+2022-05-05 20:28:19,020 [DEBUG]  		Preparing categorical values for column CreationDate
+2022-05-05 20:28:19,032 [INFO ]  Ignoring column CreationDate for table posts because there are too many categorical values
+2022-05-05 20:28:19,032 [DEBUG]  		Preparing categorical values for column Score
+2022-05-05 20:28:19,066 [DEBUG]  		Preparing categorical values for column ViewCount
+2022-05-05 20:28:19,102 [DEBUG]  		Preparing categorical values for column OwnerUserId
+2022-05-05 20:28:19,108 [INFO ]  Ignoring column OwnerUserId for table posts because there are too many categorical values
+2022-05-05 20:28:19,108 [DEBUG]  		Preparing categorical values for column AnswerCount
+2022-05-05 20:28:19,141 [DEBUG]  		Preparing categorical values for column CommentCount
+2022-05-05 20:28:19,172 [DEBUG]  		Preparing categorical values for column FavoriteCount
+2022-05-05 20:28:19,201 [DEBUG]  		Preparing numerical values for column mul_comments.PostId
+2022-05-05 20:28:19,204 [DEBUG]  		Preparing numerical values for column mul_comments.PostId_nn
+2022-05-05 20:28:19,206 [DEBUG]  		Preparing numerical values for column mul_tags.ExcerptPostId
+2022-05-05 20:28:19,208 [DEBUG]  		Preparing numerical values for column mul_tags.ExcerptPostId_nn
+2022-05-05 20:28:19,210 [DEBUG]  		Preparing numerical values for column mul_postLinks.PostId
+2022-05-05 20:28:19,212 [DEBUG]  		Preparing numerical values for column mul_postLinks.PostId_nn
+2022-05-05 20:28:19,214 [DEBUG]  		Preparing numerical values for column mul_postLinks.RelatedPostId
+2022-05-05 20:28:19,216 [DEBUG]  		Preparing numerical values for column mul_postLinks.RelatedPostId_nn
+2022-05-05 20:28:19,218 [DEBUG]  		Preparing numerical values for column mul_postHistory.PostId
+2022-05-05 20:28:19,220 [DEBUG]  		Preparing numerical values for column mul_postHistory.PostId_nn
+2022-05-05 20:28:19,222 [DEBUG]  		Preparing numerical values for column mul_votes.PostId
+2022-05-05 20:28:19,224 [DEBUG]  		Preparing numerical values for column mul_votes.PostId_nn
+2022-05-05 20:28:19,226 [INFO ]  Relevant attributes for table posts are ['PostTypeId', 'Score', 'ViewCount', 'AnswerCount', 'CommentCount', 'FavoriteCount', 'mul_comments.PostId', 'mul_comments.PostId_nn', 'mul_tags.ExcerptPostId', 'mul_tags.ExcerptPostId_nn', 'mul_postLinks.PostId', 'mul_postLinks.PostId_nn', 'mul_postLinks.RelatedPostId', 'mul_postLinks.RelatedPostId_nn', 'mul_postHistory.PostId', 'mul_postHistory.PostId_nn', 'mul_votes.PostId', 'mul_votes.PostId_nn']
+2022-05-05 20:28:19,226 [INFO ]  NULL values for table posts are [0, 0, 0, 0, 0, 0, -100001.83429767986, -100002.27023275058, -100000.0001, -100001.0001, -100000.08119636105, -100001.02433431945, -100000.10984482752, -100001.06136531633, -100002.36126637855, -100002.62248385683, -100002.01783269404, -100002.49943135458]
+2022-05-05 20:28:19,278 [INFO ]  Adding table parts without join partners for table posts
+2022-05-05 20:28:19,279 [INFO ]  Adding table parts without join partners for table posts and relationship comments.PostId = posts.Id

@@ -1,0 +1,13 @@
+2022-05-05 20:04:48,121 [INFO ]  Generating HDF files for tables in /home/ubuntu/End-to-End-CardEst-Benchmark/datasets/stats_simplified and store to path /home/ubuntu/End-to-End-CardEst-Benchmark/datasets/stats_simplified/gen_hdf
+2022-05-05 20:04:48,122 [INFO ]  Removing target path /home/ubuntu/End-to-End-CardEst-Benchmark/datasets/stats_simplified/gen_hdf
+2022-05-05 20:04:48,125 [INFO ]  Making target path /home/ubuntu/End-to-End-CardEst-Benchmark/datasets/stats_simplified/gen_hdf
+2022-05-05 20:04:48,126 [INFO ]  Preparing hdf file for table badges
+2022-05-05 20:04:48,215 [INFO ]  Managing functional dependencies for table badges
+2022-05-05 20:04:48,217 [INFO ]  Preparing multipliers for table badges
+2022-05-05 20:04:48,220 [INFO ]  Preparing categorical values and null values for table badges
+2022-05-05 20:04:48,220 [DEBUG]  		Preparing categorical values for column UserId
+2022-05-05 20:04:48,225 [INFO ]  Ignoring column UserId for table badges because there are too many categorical values
+2022-05-05 20:04:48,225 [DEBUG]  		Preparing categorical values for column Date
+2022-05-05 20:04:48,231 [INFO ]  Ignoring column Date for table badges because there are too many categorical values
+2022-05-05 20:04:48,231 [INFO ]  Relevant attributes for table badges are []
+2022-05-05 20:04:48,232 [INFO ]  NULL values for table badges are []
